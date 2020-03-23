@@ -1,0 +1,11 @@
+package: github.com/tin-incognito/simulate-consensus
+import:
+- package: github.com/ethereum/go-ethereum
+  version: "2"
+  subpackages:
+  - crypto
+- package: github.com/segmentio/ksuid
+  version: v1.0.2
+- package: golang.org/x/crypto
+  subpackages:
+  - sha3

@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/tin-incognito/simulate-consensus/consensus"
-	"time"
 )
 
 //Server for storing consensus engine
@@ -18,23 +17,23 @@ type Server struct{
 	listenAddrs string
 }
 
-//NewServer return a server object
-func (server *Server) NewServer(cfg config) (*Server, error){
-	var err error
-
-	consensusEngine := &consensus.Engine{}
-	consensusEngine, err = consensusEngine.NewEngine()
-
-	res := &Server{
-		startUpTime: time.Now().Unix(),
-		miningKeys: cfg.MiningKeys,
-		privateKey: cfg.PrivateKey,
-		listenAddrs: cfg.listenAddrs,
-		consensusEngine: consensusEngine,
-	}
-
-	return res, err
-}
+////NewServer return a server object
+//func (server *Server) NewServer(cfg config) (*Server, error){
+//	var err error
+//
+//	consensusEngine := &consensus.Engine{}
+//	consensusEngine, err = consensusEngine.NewEngine()
+//
+//	res := &Server{
+//		startUpTime: time.Now().Unix(),
+//		miningKeys: cfg.MiningKeys,
+//		privateKey: cfg.PrivateKey,
+//		listenAddrs: cfg.listenAddrs,
+//		consensusEngine: consensusEngine,
+//	}
+//
+//	return res, err
+//}
 
 //start the server for starting node
 //to start working in the system

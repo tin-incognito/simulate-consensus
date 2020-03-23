@@ -1,36 +1,21 @@
 package main
 
+import "log"
+
 func main(){
+	pool := &Pool{}
+	var err error
 
-	//finalizedTxs := blockchain.GenerateTxs()
-	//
-	//chain := blockchain.Chain{
-	//	LatestBlock: nil,
-	//	Height:      0,
-	//	ValidatorsAmount: 5,
-	//}
-	//
-	//block, err := chain.CreateBlock(finalizedTxs, nil)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//
-	//check, err := chain.ValidateBlock(block)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//if check{
-	//	_, err := chain.InsertBlock(block)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//}
-	//
-	//log.Println(chain)
-	//if chain.LatestBlock != nil {
-	//	log.Println(chain.LatestBlock)
-	//}
+	pool, err = pool.createPool(5)
 
-	
+	if err != nil {
+		panic(err)
+	}
 
+	log.Println(pool)
+
+	err = pool.start()
+	if err != nil{
+		panic(err)
+	}
 }

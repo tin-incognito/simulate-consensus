@@ -3,28 +3,38 @@ package main
 import (
 	"github.com/tin-incognito/simulate-consensus/common"
 	"log"
+	"time"
 )
 
 //Actor
 type Actor struct{
-	BFTMessageCh     chan PbftMsg
-	ProposeMessageCh chan PbftMsg
-	VoteMessageCh    chan PbftMsg
-	ViewChangeMessageCh chan PbftMsg
-	BroadcastMsgCh chan PbftMsg
+	PrePrepareMsgCh chan NormalMsg
+	PrepareMsgCh    chan NormalMsg
+	CommitMsgCh chan NormalMsg
+	FinishMsgCh chan NormalMsg
+	ViewChangeMessageCh chan ViewMsg
+	BroadcastMsgCh chan struct{}
 	isStarted      bool
 	StopCh         chan struct{}
 	CurrNode 	   *Node
 	Validators map[int]*Node
-
+	chainHandler ChainHandler
 }
 
 func NewActor() *Actor{
+
 	res := &Actor{
+		PrePrepareMsgCh:     make (chan NormalMsg),
+		PrepareMsgCh:        make (chan NormalMsg),
+		CommitMsgCh:         make (chan NormalMsg),
+		FinishMsgCh:    make (chan NormalMsg),
+		ViewChangeMessageCh: make (chan ViewMsg),
+		BroadcastMsgCh:      make (chan struct{}),
+		isStarted:           true,
+		CurrNode:            nil,
 		Validators: make(map[int]*Node),
 		StopCh: make(chan struct{}),
-		ProposeMessageCh: make(chan PbftMsg),
-		VoteMessageCh: make(chan PbftMsg),
+		chainHandler: &Chain{},
 	}
 
 	return res
@@ -44,13 +54,12 @@ func (actor Actor) start() error{
 	// - Define message send in network and encode it with protoc
 	// -
 
-
 	actor.isStarted = true
 
 	go func(){
 		//ticker := time.Tick(300 * time.Millisecond)
 
-		//log.Println("action")
+		log.Println("Start actor")
 
 		select {
 		case <- actor.StopCh:
@@ -59,14 +68,40 @@ func (actor Actor) start() error{
 		case broadcastMsg := <- actor.BroadcastMsgCh:
 			log.Println(1)
 			log.Println("broadcastMsg:", broadcastMsg)
+			block, err := actor.chainHandler.CreateBlock()
+			if err != nil {
+				log.Println(err)
+				return
+			}
 
-		case proposeMsg := <- actor.ProposeMessageCh:
+			msg := NormalMsg{
+				Type:      PREPREPARE,
+				View:      actor.chainHandler.View(),
+				SeqNum:    actor.chainHandler.SeqNumber(),
+				SignerID:  actor.CurrNode.index,
+				Timestamp: uint64(time.Now().Unix()),
+				BlockID:   &block.Index,
+			}
+
+			for _, member := range actor.Validators{
+				member.consensusEngine.BFTProcess.PrePrepareMsgCh <- msg
+			}
+
+		case prePrepareMsg := <- actor.PrePrepareMsgCh:
 			log.Println(2)
-			log.Println(proposeMsg)
+			log.Println(prePrepareMsg)
 
-		case voteMsg := <- actor.VoteMessageCh:
+		case prepareMsg := <- actor.PrepareMsgCh:
 			log.Println(3)
-			log.Println(voteMsg)
+			log.Println(prepareMsg)
+
+		case commitMsgCh := <- actor.CommitMsgCh:
+			log.Println(3)
+			log.Println(commitMsgCh)
+
+		case finishMsgCh := <- actor.FinishMsgCh:
+			log.Println(3)
+			log.Println(finishMsgCh)
 
 		case viewChangeMsg := <- actor.ViewChangeMessageCh:
 			log.Println(4)

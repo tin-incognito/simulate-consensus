@@ -22,6 +22,18 @@ type Chain struct{
 	LatestBlock *Block
 	Height uint64
 	ValidatorsAmount uint64
+	view uint64
+	seqNumber uint64
+}
+
+//SeqNumber ...
+func (chain *Chain) SeqNumber() uint64{
+	return chain.seqNumber
+}
+
+//View ...
+func (chain *Chain) View() uint64{
+	return chain.view
 }
 
 //CreateBlock ...

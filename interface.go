@@ -9,6 +9,8 @@ type BlockHandler interface {
 type ChainHandler interface {
 	CreateBlock() (*Block, error)
 	ValidateBlock(block *Block) (bool, error)
-	InsertBlock(block *Block) error
+	InsertBlock(block *Block) (bool, error)
+	SeqNumber() uint64
+	View() uint64
 }
 

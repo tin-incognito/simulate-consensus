@@ -91,31 +91,18 @@ func (pool *Pool) start() error {
 }
 
 func (pool *Pool) simulate(chain *Chain) error{
-	
-	for i, node := range pool.Nodes{
-		block, err := chain.CreateBlock()
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-		msg := PbftMsg{
-			PbftMsgInfo: PbftMsgInfo{
-				Type:     SEALREQUEST,	
-				View:     0,
-				SeqNum:   0,
-				SignerID: i,
-			},
-			BlockID: &block.Index,
+
+	log.Println("Start simulating")
+
+	for _, node := range pool.Nodes{
+
+		type temp struct{
+
 		}
 
-		log.Println("Node", i)
-		log.Println("msg:", msg)
+		t := temp{}
 
-		log.Println(node.consensusEngine)
-		log.Println(node.consensusEngine.BFTProcess)
-		log.Println(node.consensusEngine.BFTProcess.BroadcastMsgCh)
-
-		node.consensusEngine.BFTProcess.BroadcastMsgCh <- msg
+		node.consensusEngine.BFTProcess.BroadcastMsgCh <- t
 	}
 	return nil
 }

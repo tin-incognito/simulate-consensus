@@ -1,23 +1,14 @@
 package main
 
-//PbftMsgInfo ...
-type PbftMsgInfo struct{
+type NormalMsg struct{
 	Type string // Below type
 	View uint64 // Number of view in network
-	SeqNum uint64 // sequence number = block.Height + 1
+	SeqNum uint64 // Sequence number = block.Height + 1
 	SignerID int // Msg from who?
+	Timestamp uint64
+	BlockID *uint64
 }
 
-//PbftMsg ...
-type PbftMsg struct{
-	PbftMsgInfo
-	BlockID *uint64 // Msg for which block?
-}
+type ViewMsg struct{
 
-const (
-	VIEWCHANGE = "viewchange"
-	PREPREPARE = "preprepare"
-	PREPARE = "prepare"
-	COMMIT = "commit"
-	SEALREQUEST = "sealrequest"
-)
+}

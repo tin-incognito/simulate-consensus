@@ -1,6 +1,9 @@
 package main
 
-import "log"
+import (
+	"log"
+	"time"
+)
 
 func main(){
 	pool := &Pool{}
@@ -26,6 +29,8 @@ func main(){
 	if err != nil{
 		panic(err)
 	}
+
+	time.Sleep(time.Second * 1)
 
 	chain := &Chain{
 		LatestBlock:      nil,

@@ -34,7 +34,7 @@ func (actor Actor) Start() error{
 	//
 	//TODO: Implement sawtooth consensus:
 	// - Define message send in network and encode it with protoc
-	// - 
+	// -
 
 
 	actor.isStarted = true

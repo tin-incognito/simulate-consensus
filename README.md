@@ -16,6 +16,10 @@ run cmd: `make run`
 
 #### 3. Monitor:
 
+#### 4. Simulate:
+
+run cmd: `make sawtooth`
+
 ### Streamlet:
 
 #### 1. Config:

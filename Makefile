@@ -23,3 +23,6 @@ build-run:
 glide:
 	$(GOGET) github.com/Masterminds/glide
 	glide install
+sawtooth:
+	# $(GORUN) sawtooth.go message.go blockchain.go message.go main.go node.go
+	$(GORUN) *.go

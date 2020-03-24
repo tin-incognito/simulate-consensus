@@ -2,6 +2,14 @@ package sawtooth
 
 import "encoding/json"
 
+
+type PbftMsgInfo struct{
+	Type string
+	View uint64
+	SeqNum uint64
+	SignerID []byte
+}
+
 //MessageBFT ...
 type MessageBFT struct{
 	SignerID string
@@ -9,8 +17,13 @@ type MessageBFT struct{
 	Type      string
 	Content   []byte
 	Timestamp int64
+	SeqNum uint64
+	View uint64
+
 	//TimeSlot  int64
 }
+
+//type
 
 //BFTPropose ...
 type BFTPropose struct{
@@ -21,3 +34,5 @@ type BFTPropose struct{
 type BFTVote struct {
 	Block json.RawMessage
 }
+
+

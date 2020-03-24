@@ -47,7 +47,7 @@ func (chain Chain) CreateBlock() (*Block, error){
 	hash := utils.GenerateHashV1()
 
 	res := &Block{
-		Index: 		  chain.Height + 1,
+		Index: 		  chain.Height,
 		Hash:         hash,
 		PrevHash:     prevHash,
 		Height:       chain.Height + 1,
@@ -60,7 +60,6 @@ func (chain Chain) CreateBlock() (*Block, error){
 
 //ValidateBlock ...
 func (chain Chain) ValidateBlock(block *Block) (bool, error){
-	//if block.VoteAmount >=
 	block.IsValid = true
 	return true, nil
 }

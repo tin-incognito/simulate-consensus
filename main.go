@@ -30,7 +30,7 @@ func main(){
 		panic(err)
 	}
 
-	time.Sleep(time.Second * 1)
+	//time.Sleep(time.Second * 1)
 
 	chain := &Chain{
 		LatestBlock:      nil,
@@ -43,5 +43,7 @@ func main(){
 	if err != nil {
 		panic(err)
 	}
+
+	time.Sleep(time.Second * 2)
 
 }

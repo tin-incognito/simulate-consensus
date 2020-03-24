@@ -21,6 +21,7 @@ type Node struct{
 	CurrSeqNumber uint64
 	CurrHeadOfChain uint64
 	PhaseStatus int
+	IsProposer bool
 	//BlocksLog
 	//MessagesLog
 }
@@ -37,6 +38,11 @@ func (node *Node) createNode(index int) (*Node, error){
 		privateKey:      utils.GenerateKey(),
 		isEnableMining:  true,
 		consensusEngine: NewEngine(),
+		ViewNumber: 0,
+		CurrSeqNumber: 0,
+		CurrHeadOfChain: 0,
+		PhaseStatus: 0,
+		IsProposer: false,
 	}
 	return res, nil
 }
@@ -94,15 +100,20 @@ func (pool *Pool) simulate(chain *Chain) error{
 
 	log.Println("Start simulating")
 
-	for _, node := range pool.Nodes{
+	type temp struct{
 
-		type temp struct{
-
-		}
-
-		t := temp{}
-
-		node.consensusEngine.BFTProcess.BroadcastMsgCh <- t
 	}
+
+	t := temp{}
+
+	pool.Nodes[0].IsProposer = true
+	pool.Nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- t
+
+	//for _, node := range pool.Nodes{
+	//
+	//	node.consensusEngine.BFTProcess.BroadcastMsgCh <- t
+	//	node.consensusEngine.BFTProcess.Test <- ""
+	//}
+
 	return nil
 }

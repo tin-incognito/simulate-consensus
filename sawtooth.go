@@ -19,6 +19,7 @@ type Actor struct{
 	CurrNode 	   *Node
 	Validators map[int]*Node
 	chainHandler ChainHandler
+	Test chan string
 }
 
 func NewActor() *Actor{
@@ -35,6 +36,7 @@ func NewActor() *Actor{
 		Validators: make(map[int]*Node),
 		StopCh: make(chan struct{}),
 		chainHandler: &Chain{},
+		Test: make(chan string),
 	}
 
 	return res
@@ -59,9 +61,9 @@ func (actor Actor) start() error{
 	go func(){
 		//ticker := time.Tick(300 * time.Millisecond)
 
-		log.Println("Start actor")
-
 		select {
+		case test := <- actor.Test:
+			log.Println(test)
 		case <- actor.StopCh:
 			log.Println(0)
 			return
@@ -74,6 +76,8 @@ func (actor Actor) start() error{
 				return
 			}
 
+			log.Println("block:", block)
+
 			msg := NormalMsg{
 				Type:      PREPREPARE,
 				View:      actor.chainHandler.View(),
@@ -82,6 +86,8 @@ func (actor Actor) start() error{
 				Timestamp: uint64(time.Now().Unix()),
 				BlockID:   &block.Index,
 			}
+
+			log.Println("msg:", msg)
 
 			for _, member := range actor.Validators{
 				member.consensusEngine.BFTProcess.PrePrepareMsgCh <- msg

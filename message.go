@@ -14,5 +14,12 @@ type NormalMsg struct{
 }
 
 type ViewMsg struct{
-
+	hash        string
+	Type        string // Below type
+	View        uint64 // Number of view need to be switch to
+	SignerID    int // Msg from who?
+	Timestamp   uint64
+	prevMsgHash *string
+	amount      uint64
+	singedMsgs  []*ViewMsg
 }

@@ -26,6 +26,10 @@ type Chain struct{
 	seqNumber uint64
 }
 
+func (chain *Chain) IncreaseView() error{
+	return nil
+}
+
 func (chain *Chain) IncreaseSeqNum() error{
 	chain.seqNumber++
 	return nil

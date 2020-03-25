@@ -22,8 +22,8 @@ type Node struct{
 	CurrHeadOfChain uint64
 	PhaseStatus int
 	IsProposer bool
-	//BlocksLog
-	//MessagesLog
+	Mode string
+	View uint64
 }
 
 //createNode for initiating node in network
@@ -42,6 +42,8 @@ func (node *Node) createNode(index int) (*Node, error){
 		CurrSeqNumber: 0,
 		CurrHeadOfChain: 0,
 		PhaseStatus: 0,
+		View: 0,
+		Mode: NormalMode,
 		IsProposer: false,
 	}
 	return res, nil
@@ -106,11 +108,7 @@ func (pool *Pool) simulate(chain *Chain) error{
 		element.consensusEngine.BFTProcess.ProposalNode = pool.Nodes[0]
 	}
 
-	type temp struct{
-
-	}
-	t := temp{}
-	pool.Nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- t
+	pool.Nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
 
 	//for _, node := range pool.Nodes{
 	//

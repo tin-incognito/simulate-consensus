@@ -14,5 +14,6 @@ type ChainHandler interface {
 	View() uint64
 	ValidatorsAmount() uint64
 	IncreaseSeqNum() error
+	IncreaseView() error
 }
 

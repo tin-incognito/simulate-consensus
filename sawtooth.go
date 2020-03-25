@@ -4,6 +4,7 @@ import (
 	"github.com/tin-incognito/simulate-consensus/common"
 	"github.com/tin-incognito/simulate-consensus/utils"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -18,8 +19,9 @@ type Actor struct{
 	commitMutex sync.Mutex
 	FinishMsgCh chan NormalMsg
 	finishMutex sync.Mutex
-	ViewChangeMessageCh chan ViewMsg
-	BroadcastMsgCh chan struct{}
+	ViewChangeMsgCh chan ViewMsg
+	BackViewChangeMsgCh chan ViewMsg
+	BroadcastMsgCh chan bool
 	isStarted      bool
 	StopCh         chan struct{}
 	CurrNode 	   *Node
@@ -39,8 +41,9 @@ func NewActor() *Actor{
 		PrepareMsgCh:        make (chan NormalMsg),
 		CommitMsgCh:         make (chan NormalMsg),
 		FinishMsgCh:    make (chan NormalMsg),
-		ViewChangeMessageCh: make (chan ViewMsg),
-		BroadcastMsgCh:      make (chan struct{}),
+		ViewChangeMsgCh: make (chan ViewMsg),
+		BackViewChangeMsgCh: make (chan ViewMsg),
+		BroadcastMsgCh:      make (chan bool),
 		isStarted:           true,
 		CurrNode:            nil,
 		ProposalNode: nil,
@@ -196,12 +199,12 @@ func (actor Actor) start() error{
 			}
 
 
-			//TODO: Checking for > 2*f + 1
+			//TODO: Checking for > 2n/3
 
 			// Node (not primary node) send prepare msg to other nodes
-			//TODO: Optimize by once a node has 2f + 1 switch to commit phase
+			//TODO: Optimize by once a node has 2n/3 switch to commit phase
 			if len(actor.PrePrepareMsgCh) == 0{
-				if actor.BFTMsgLogs[prepareMsg.hash].Amount <= (2 * f + 1){
+				if actor.BFTMsgLogs[prepareMsg.hash].Amount <= uint64(2*n/3){
 					//TODO: Switch to view change mode
 					return
 				}
@@ -259,12 +262,12 @@ func (actor Actor) start() error{
 			}
 
 
-			//TODO: Checking for > 2*f + 1
+			//TODO: Checking for > 2n/3
 
 			// Node (not primary node) send prepare msg to other nodes
-			//TODO: Optimize by once a node has 2f + 1 switch to commit phase
+			//TODO: Optimize by once a node has greater 2n/3 switch to commit phase
 			if len(actor.PrePrepareMsgCh) == 0{
-				if actor.BFTMsgLogs[commitMsg.hash].Amount <= (2 * f + 1){
+				if actor.BFTMsgLogs[commitMsg.hash].Amount <= uint64(2*n/3){
 					//TODO: Switch to view change mode
 					return
 				}
@@ -285,14 +288,33 @@ func (actor Actor) start() error{
 						//TODO: Switch to view change mode
 						return
 					}
-					//Update status of proposer
-					//actor.CurrNode.IsProposer = false
+					//Increase sequence number
 					err = actor.chainHandler.IncreaseSeqNum()
 					if err != nil {
 						return
 					}
-					//Return to prepreparing phase
+
+					// FOR SIMULATE ONLY
+					//Return to pre preparing phase
+					actor.BroadcastMsgCh <- true
 					//
+
+					//TODO:
+					// Update status of proposer
+					// Calculate for random proposer (for simulating, we just increase index of node)
+					// Send a msg to system for switching to other view change mode
+
+					actor.CurrNode.IsProposer = false
+					rdNum := rand.Intn(int(n) - 0) + 0
+
+					viewChangeMsg := ViewMsg{
+						Type: VIEWCHANGE,
+
+					}
+
+					actor.Validators[rdNum].consensusEngine.BFTProcess.ViewChangeMsgCh <- viewChangeMsg
+
+					///
 				}
 			}
 
@@ -303,26 +325,126 @@ func (actor Actor) start() error{
 			// - Multiple PrePrepare messages are received for the same view and sequence number but different blocks
 			// - A Prepare message is received from the primary
 			// - f + 1 ViewChange messages are received for the same view
-		case viewChangeMsg := <- actor.ViewChangeMessageCh:
 
-			//TODO: Follow these steps for building viewchange mode
-			//
+		case viewChangeMsg := <- actor.ViewChangeMsgCh:
 
-			//There are 3 types of viewChange msg:
-			// - Viewchange msg
-			// - NewView msg
-			// -
+			if viewChangeMsg.Type == PREPAREVIEWCHANGE {
+				// Update its mode to viewChange mode
+				err := actor.ViewChanging(actor.chainHandler.View() + 1)
+				if err != nil {
+					//TODO: Restart new view change mode
+					return
+				}
 
-			//Process of view changing mode
-			// - One node will update its mode to viewChanging(v), where v is the node is changing to
-			// - Stop both the idle and commit time out
-			// - Stop the view change timeout if it's been started
-			// - Broadcast a ViewChange message for new view
-			// -
+				err = actor.chainHandler.IncreaseView()
+				if err != nil {
+					//TODO: Restart new view change mode
+					return
+				}
+
+				msg := ViewMsg{
+					hash: utils.GenerateHashV1(),
+					Type:       VIEWCHANGE,
+					View:       actor.chainHandler.View() + 1,
+					SignerID:   actor.CurrNode.index,
+					Timestamp:  uint64(time.Now().Unix()),
+					prevMsgHash: nil,
+				}
+
+				//Save view change msg to somewhere
+				if actor.ViewChangeMsgLogs[viewChangeMsg.hash] != nil {
+					actor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
+					*actor.ViewChangeMsgLogs[viewChangeMsg.hash] = msg
+				}
+
+				//Send messages to other nodes
+				for _, element := range actor.Validators{
+					element.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
+				}
+
+			} else {
+				if viewChangeMsg.Type == VIEWCHANGE{
+					if viewChangeMsg.View <= actor.CurrNode.View{
+						//TODO: Restart new view change mode
+						return
+					}
+
+					//Save view change msg to somewhere
+					if actor.ViewChangeMsgLogs[viewChangeMsg.hash] != nil {
+						actor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
+						*actor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
+					}
+
+					//Define message for sending back to primary node
+					msg := ViewMsg{
+						Type:       BACKVIEWCHANGE,
+						View:       viewChangeMsg.View,
+						SignerID:   actor.CurrNode.index,
+						Timestamp:  uint64(time.Now().Unix()),
+						prevMsgHash: &viewChangeMsg.hash,
+					}
+
+					actor.ViewChanging(viewChangeMsg.View)
+
+					actor.ProposalNode.consensusEngine.BFTProcess.BackViewChangeMsgCh <- msg
+
+				} else {
+					if viewChangeMsg.Type == NEWVIEW {
+						//if viewChangeMsg.prevMsgHash
+					} else {
+						//TODO: Restart new view change mode
+						return
+					}
+				}
+			}
 
 			log.Println(4)
 			log.Println(viewChangeMsg)
-		//default:
+		case backViewChangeMsg := <- actor.BackViewChangeMsgCh:
+			if backViewChangeMsg.Type == BACKVIEWCHANGE{
+
+				if backViewChangeMsg.prevMsgHash == nil {
+					//TODO: Restart new view change mode
+					return
+				}
+
+				if actor.ViewChangeMsgLogs[*backViewChangeMsg.prevMsgHash] == nil {
+					//TODO: Restart new view change mode
+					return
+				}
+
+				//Save view change msg to somewhere
+				if actor.ViewChangeMsgLogs[backViewChangeMsg.hash] != nil {
+					actor.ViewChangeMsgLogs[backViewChangeMsg.hash] = new(ViewMsg)
+					*actor.ViewChangeMsgLogs[backViewChangeMsg.hash] = backViewChangeMsg
+				} else {
+					actor.ViewChangeMsgLogs[backViewChangeMsg.hash].amount++
+				}
+
+
+				if len(actor.BackViewChangeMsgCh) == 0{
+
+					if actor.ViewChangeMsgLogs[backViewChangeMsg.hash].amount <= uint64(2*n/3){
+						//TODO: Restart new view change mode
+						return
+					}
+
+					//Send messages to other nodes
+					for _, element := range actor.Validators{
+						//Define message for sending back to primary node
+						msg := ViewMsg{
+							Type:       NEWVIEW,
+							View:       backViewChangeMsg.View,
+							SignerID:   actor.CurrNode.index,
+							Timestamp:  uint64(time.Now().Unix()),
+							prevMsgHash: nil,
+						}
+						element.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
+					}
+				}
+			}
+
+			//default:
 		//	log.Println("Error in sending message")
 
 		//case <-ticker:
@@ -336,8 +458,9 @@ func (actor Actor) start() error{
 }
 
 //ViewChanging ...
-func (actor *Actor)ViewChanging(v uint64){
-
+func (actor *Actor)ViewChanging(v uint64) error{
+	actor.CurrNode.Mode = ViewChangeMode
+	return nil
 }
 
 func (actor *Actor) initValidators(m map[int]*Node) {

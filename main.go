@@ -43,18 +43,6 @@ func main(){
 		panic(err)
 	}
 
-	//msg := NormalMsg{
-	//	Type:      PREPARE,
-	//	View:      1,
-	//	SeqNum:    1,
-	//	SignerID:  1,
-	//	Timestamp: uint64(time.Now().Unix()),
-	//	BlockID:   nil,
-	//	block: nil,
-	//}
-	//
-	//pool.Nodes[0].consensusEngine.BFTProcess.PrepareMsgCh <- msg
-
 	time.Sleep(time.Millisecond * 1500)
 
 }

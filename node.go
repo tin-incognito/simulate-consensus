@@ -100,13 +100,16 @@ func (pool *Pool) simulate(chain *Chain) error{
 
 	log.Println("Start simulating")
 
+	pool.Nodes[0].IsProposer = true
+
+	for _, element := range pool.Nodes{
+		element.consensusEngine.BFTProcess.ProposalNode = pool.Nodes[0]
+	}
+
 	type temp struct{
 
 	}
-
 	t := temp{}
-
-	pool.Nodes[0].IsProposer = true
 	pool.Nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- t
 
 	//for _, node := range pool.Nodes{

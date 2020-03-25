@@ -21,9 +21,18 @@ type Block struct{
 type Chain struct{
 	LatestBlock *Block
 	Height uint64
-	ValidatorsAmount uint64
+	validatorsAmount uint64
 	view uint64
 	seqNumber uint64
+}
+
+func (chain *Chain) IncreaseSeqNum() error{
+	chain.seqNumber++
+	return nil
+}
+
+func (chain *Chain) ValidatorsAmount() uint64{
+	return chain.validatorsAmount
 }
 
 //SeqNumber ...

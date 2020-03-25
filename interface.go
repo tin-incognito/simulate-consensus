@@ -12,5 +12,7 @@ type ChainHandler interface {
 	InsertBlock(block *Block) (bool, error)
 	SeqNumber() uint64
 	View() uint64
+	ValidatorsAmount() uint64
+	IncreaseSeqNum() error
 }
 

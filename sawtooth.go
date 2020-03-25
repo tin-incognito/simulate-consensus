@@ -105,6 +105,7 @@ func (actor Actor) start() error{
 				// Or may be broadcast by go routine
 				log.Println(-1)
 				member.consensusEngine.BFTProcess.PrePrepareMsgCh <- msg
+				//close(member.consensusEngine.BFTProcess.PrepareMsgCh)
 				log.Println(1)
 			}
 
@@ -304,6 +305,9 @@ func (actor Actor) start() error{
 			// - f + 1 ViewChange messages are received for the same view
 		case viewChangeMsg := <- actor.ViewChangeMessageCh:
 
+			//TODO: Follow these steps for building viewchange mode
+			//
+
 			//There are 3 types of viewChange msg:
 			// - Viewchange msg
 			// - NewView msg
@@ -329,6 +333,11 @@ func (actor Actor) start() error{
 
 
 	return nil
+}
+
+//ViewChanging ...
+func (actor *Actor)ViewChanging(v uint64){
+
 }
 
 func (actor *Actor) initValidators(m map[int]*Node) {

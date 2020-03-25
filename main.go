@@ -37,6 +37,8 @@ func main(){
 		validatorsAmount: n,
 	}
 
+	time.Sleep(time.Millisecond * 500)
+
 	err = pool.simulate(chain)
 
 	if err != nil {

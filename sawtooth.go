@@ -108,7 +108,6 @@ func (actor Actor) start() error{
 				// Or may be broadcast by go routine
 				log.Println(-1)
 				member.consensusEngine.BFTProcess.PrePrepareMsgCh <- msg
-				//close(member.consensusEngine.BFTProcess.PrepareMsgCh)
 				log.Println(1)
 			}
 
@@ -118,19 +117,20 @@ func (actor Actor) start() error{
 
 			//actor.prepareMutex.Lock()
 
-			log.Println(prePrepareMsg)
+			currActor := actor.CurrNode.consensusEngine.BFTProcess
 
-			// Check if prepare msg if valid
-			if !(prePrepareMsg.SignerID == actor.ProposalNode.index){
+			log.Println("prePrepareMsg:", prePrepareMsg)
+
+			if !(prePrepareMsg.SignerID == currActor.ProposalNode.index){
 				return
 			}
 
 			//Save it to somewhere else for every node (actor of consensus engine)
-			if actor.BFTMsgLogs[prePrepareMsg.hash] == nil{
-				actor.BFTMsgLogs[prePrepareMsg.hash] = new(NormalMsg)
-				*actor.BFTMsgLogs[prePrepareMsg.hash] = prePrepareMsg
+			if currActor.BFTMsgLogs[prePrepareMsg.hash] == nil{
+				currActor.BFTMsgLogs[prePrepareMsg.hash] = new(NormalMsg)
+				*currActor.BFTMsgLogs[prePrepareMsg.hash] = prePrepareMsg
 			} else {
-				actor.BFTMsgLogs[prePrepareMsg.hash].Amount++
+				currActor.BFTMsgLogs[prePrepareMsg.hash].Amount++
 			}
 
 			// Reset idle timeout here
@@ -139,17 +139,17 @@ func (actor Actor) start() error{
 
 			// Start commit timeout here
 
-			log.Println("actor.CurrNode.index:", actor.CurrNode.index)
+			log.Println("actor.CurrNode.index:", currActor.CurrNode.index)
 
 			// Node (not primary node) send prepare msg to other nodes
-			if len(actor.PrePrepareMsgCh) == 0{
-				if !actor.CurrNode.IsProposer{
+			if len(currActor.PrePrepareMsgCh) == 0{
+				if !currActor.CurrNode.IsProposer{
 					msg := NormalMsg{
 						hash: 	   utils.GenerateHashV1(),
 						Type:      PREPARE,
-						View:      actor.chainHandler.View(),
-						SeqNum:    actor.chainHandler.SeqNumber(),
-						SignerID:  actor.CurrNode.index,
+						View:      currActor.chainHandler.View(),
+						SeqNum:    currActor.chainHandler.SeqNumber(),
+						SignerID:  currActor.CurrNode.index,
 						Timestamp: uint64(time.Now().Unix()),
 						BlockID:   prePrepareMsg.BlockID,
 						block: prePrepareMsg.block,
@@ -158,12 +158,12 @@ func (actor Actor) start() error{
 
 					//log.Println("actor.CurrNode", actor.CurrNode)
 
-					for _, member := range actor.Validators{
-						log.Println(member.IsProposer)
-						log.Println("member.index:", member.index)
-						log.Println("Send to prepare msg channel")
-						log.Println("msg:", msg)
+					for _, member := range currActor.Validators{
+						log.Printf("inside %p																	" +
+							"", &member.consensusEngine.BFTProcess.PrepareMsgCh)
 						log.Println(0)
+						log.Println("member.index:", member.index)
+						log.Println("member.consensusEngine.BFTProcess:", member.consensusEngine.BFTProcess)
 						member.consensusEngine.BFTProcess.PrepareMsgCh <- msg
 						log.Println(2)
 					}
@@ -443,10 +443,8 @@ func (actor Actor) start() error{
 					}
 				}
 			}
-
-			//default:
-		//	log.Println("Error in sending message")
-
+		default:
+			log.Println("Error in channel")
 		//case <-ticker:
 		//	log.Println(5)
 		//	return

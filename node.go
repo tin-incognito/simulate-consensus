@@ -60,6 +60,7 @@ func (node *Node) start() error{
 //Pool will stores the nodes in network
 type Pool struct{
 	Nodes map[int]*Node
+	n []*Node
 }
 
 //createPool for storing nodes
@@ -76,6 +77,7 @@ func (pool *Pool) createPool(amountOfNode int) (*Pool, error){
 			continue
 		}
 		res.Nodes[i] = n
+		pool.n = append(pool.n, n)
 	}
 
 	return res, nil
@@ -104,17 +106,19 @@ func (pool *Pool) simulate(chain *Chain) error{
 
 	pool.Nodes[0].IsProposer = true
 
-	for _, element := range pool.Nodes{
-		element.consensusEngine.BFTProcess.ProposalNode = pool.Nodes[0]
+	for index := range pool.Nodes{
+		element := pool.Nodes[index]
+
+		if element.consensusEngine.BFTProcess.ProposalNode == nil {
+			element.consensusEngine.BFTProcess.ProposalNode = pool.Nodes[0]
+		} else {
+			*element.consensusEngine.BFTProcess.ProposalNode = *pool.Nodes[0]
+		}
 	}
 
 	pool.Nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
 
-	//for _, node := range pool.Nodes{
-	//
-	//	node.consensusEngine.BFTProcess.BroadcastMsgCh <- t
-	//	node.consensusEngine.BFTProcess.Test <- ""
-	//}
+	log.Println("pool.Nodes[0].consensusEngine.BFTProcess:", pool.Nodes[0].consensusEngine.BFTProcess)
 
 	return nil
 }

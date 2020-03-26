@@ -138,6 +138,9 @@ func (actor Actor) start() error{
 					currActor.BFTMsgLogs[prePrepareMsg.hash].Amount++
 				}
 
+				log.Println("[pre prepare] prePrepareMsg.hash:", prePrepareMsg.hash)
+				log.Println("[pre prepare] currActor.BFTMsgLogs[prePrepareMsg.hash]:", currActor.BFTMsgLogs[prePrepareMsg.hash])
+
 				// Reset idle timeout here
 
 				// Move to prepare phase
@@ -202,31 +205,35 @@ func (actor Actor) start() error{
 
 				if prepareMsg.prevMsgHash == nil {
 					//TODO: Switch to view change mode
-					log.Println("[prepare] ")
+					log.Println("[prepare] prevMsgHash == null")
 					return
 				}
 
-				if currActor.BFTMsgLogs[*prepareMsg.prevMsgHash] == nil{
+				if currActor.BFTMsgLogs[*prepareMsg.prevMsgHash] == nil {
 					//TODO: Switch to view change mode
+					log.Println("[prepare] Msg with this prepareMsg.prevMsgHash hash == null" )
 					return
 				}
 
 				//Save it to somewhere else for every node (actor of consensus engine)
-				if currActor.BFTMsgLogs[prepareMsg.hash] == nil{
+				if currActor.BFTMsgLogs[prepareMsg.hash] == nil {
 					currActor.BFTMsgLogs[prepareMsg.hash] = new(NormalMsg)
 					*currActor.BFTMsgLogs[prepareMsg.hash] = prepareMsg
 				} else {
 					currActor.BFTMsgLogs[prepareMsg.hash].Amount++
 				}
 
-
 				//TODO: Checking for > 2n/3
 
 				// Node (not primary node) send prepare msg to other nodes
 				//TODO: Optimize by once a node has 2n/3 switch to commit phase
-				if len(currActor.PrePrepareMsgCh) == 0{
+				if len(currActor.PrepareMsgCh) == 0 {
+
+					log.Println("[prepare] Jump into len prep prepare msg channel == 0")
+
 					if currActor.BFTMsgLogs[prepareMsg.hash].Amount <= uint64(2*n/3){
 						//TODO: Switch to view change mode
+						log.Println("[prepare] amounts of votes <= 2/3")
 						return
 					}
 
@@ -257,9 +264,7 @@ func (actor Actor) start() error{
 				}
 
 			case commitMsg := <- actor.CommitMsgCh:
-				//This is still commiting phase
-
-				// This is still preparing phase
+				//This is still committing phase
 
 				log.Println(3)
 				log.Println(commitMsg)

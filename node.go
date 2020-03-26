@@ -52,7 +52,7 @@ func (node *Node) createNode(index int) (*Node, error){
 //start node in network
 //
 func (node *Node) start() error{
-	go node.consensusEngine.start()
+	node.consensusEngine.start()
 	return nil
 }
 
@@ -118,7 +118,7 @@ func (pool *Pool) simulate(chain *Chain) error{
 
 	pool.Nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
 
-	log.Println("pool.Nodes[0].consensusEngine.BFTProcess:", pool.Nodes[0].consensusEngine.BFTProcess)
+	//log.Println("pool.Nodes[0].consensusEngine.BFTProcess:", pool.Nodes[0].consensusEngine.BFTProcess)
 
 	return nil
 }

@@ -33,6 +33,6 @@ func main(){
 
 	//time.Sleep(time.Millisecond * 1000)
 
-	time.Sleep(time.Second * 20)
+	time.Sleep(time.Second * 5)
 
 }

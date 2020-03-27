@@ -134,7 +134,16 @@ func simulate(){
 		}
 	}
 
-	nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
+	go func(){
+		//for {
+		//	nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
+		//	time.Sleep(time.Millisecond * 1500)
+		//	//start()
+		//}
+		nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
+		time.Sleep(time.Millisecond * 500)
+		nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
+	}()
 
 }
 

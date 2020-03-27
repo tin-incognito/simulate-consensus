@@ -63,6 +63,28 @@ type Pool struct{
 	n []*Node
 }
 
+func initNodes(n int) {
+	nodes = make(map[int]*Node)
+
+	for i := 0; i < n; i++{
+		n := &Node{}
+		var err error
+		n, err = n.createNode(i)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		nodes[i] = n
+	}
+
+	for _, element := range nodes{
+		element.consensusEngine.BFTProcess.CurrNode = element
+		for i, e := range nodes{
+			element.consensusEngine.BFTProcess.Validators[i] = e
+		}
+	}
+}
+
 //createPool for storing nodes
 func (pool *Pool) createPool(amountOfNode int) (*Pool, error){
 	res := &Pool{}
@@ -89,6 +111,31 @@ func (pool *Pool) initValidators() error{
 		element.consensusEngine.BFTProcess.initValidators(pool.Nodes)
 	}
 	return nil
+}
+
+func start(){
+	for _, node := range nodes{
+		go node.start()
+	}
+}
+
+func simulate(){
+	log.Println("Start simulating")
+
+	nodes[0].IsProposer = true
+
+	for _, element := range nodes{
+		//element := nodes[index]
+
+		if element.consensusEngine.BFTProcess.ProposalNode == nil {
+			element.consensusEngine.BFTProcess.ProposalNode = nodes[0]
+		} else {
+			*element.consensusEngine.BFTProcess.ProposalNode = *nodes[0]
+		}
+	}
+
+	nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
+
 }
 
 //start ..

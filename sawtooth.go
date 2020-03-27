@@ -47,7 +47,7 @@ func NewActor() *Actor{
 		ProposalNode: nil,
 		Validators: make(map[int]*Node),
 		StopCh: make(chan struct{}),
-		chainHandler: blockChain,
+		chainHandler: &Chain{},
 		BFTMsgLogs: make(map[string]*NormalMsg),
 		ViewChangeMsgLogs: make(map[string]*ViewMsg),
 	}
@@ -199,6 +199,7 @@ func (actor Actor) start() error{
 				if prepareMsg.prevMsgHash == nil {
 					//TODO: Switch to view change mode
 					log.Println("[prepare] prevMsgHash == null")
+
 					return
 				}
 
@@ -207,6 +208,7 @@ func (actor Actor) start() error{
 				if currActor.BFTMsgLogs[*prepareMsg.prevMsgHash] == nil {
 					//TODO: Switch to view change mode
 					log.Println("[prepare] Msg with this prepareMsg.prevMsgHash hash == null" )
+					//currActor.startNormalMode()
 					return
 				}
 
@@ -679,9 +681,6 @@ func (actor *Actor) ViewChanging(v uint64) error{
 
 func (actor *Actor) initValidators(m map[int]*Node) {
 	for i, element := range m{
-		//if actor.CurrNode.index != i{
-		//
-		//}
 		actor.Validators[i] = element
 	}
 }

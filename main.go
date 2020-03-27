@@ -10,7 +10,7 @@ func main(){
 	pool := &Pool{}
 	var err error
 
-	n = 2
+	n = 4
 
 	pool, err = pool.createPool(int(n))
 

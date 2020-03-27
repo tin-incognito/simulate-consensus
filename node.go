@@ -100,7 +100,7 @@ func (pool *Pool) start() error {
 	return nil
 }
 
-func (pool *Pool) simulate(chain *Chain) error{
+func (pool *Pool) simulate() error{
 
 	log.Println("Start simulating")
 

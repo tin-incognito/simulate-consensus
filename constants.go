@@ -9,6 +9,7 @@ const (
 	PREPAREVIEWCHANGE = "prepare-viewchange"
 	NEWVIEW = "newview"
 	BACKVIEWCHANGE = "back-viewchange"
+	FINISHING = "finishing"
 )
 
 const (

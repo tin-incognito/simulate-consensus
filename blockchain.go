@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/tin-incognito/simulate-consensus/utils"
+	"log"
 	"time"
 )
 
@@ -24,6 +25,20 @@ type Chain struct{
 	validatorsAmount uint64
 	view uint64
 	seqNumber uint64
+}
+
+//print ...
+func (chain *Chain) print(){
+	log.Println("==========================================================")
+	log.Println("chain height:", chain.Height)
+	log.Println("latest block:", chain.LatestBlock)
+	log.Println("view:", chain.view)
+	log.Println("seqnumber:", chain.seqNumber)
+	log.Println("==========================================================")
+}
+
+func (chain *Chain) latestBlock() *Block{
+	return chain.LatestBlock
 }
 
 func (chain *Chain) IncreaseView() error{

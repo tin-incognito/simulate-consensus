@@ -15,5 +15,7 @@ type ChainHandler interface {
 	ValidatorsAmount() uint64
 	IncreaseSeqNum() error
 	IncreaseView() error
+	print()
+	latestBlock() *Block
 }
 

@@ -5,8 +5,15 @@ import (
 )
 
 var f, n uint64
+var blockChain *Chain
 
 func main(){
+	blockChain = &Chain{
+		LatestBlock:      nil,
+		Height:           0,
+		validatorsAmount: n,
+	}
+
 	pool := &Pool{}
 	var err error
 
@@ -31,15 +38,9 @@ func main(){
 
 	f = uint64((n - 1) / 3)
 
-	chain := &Chain{
-		LatestBlock:      nil,
-		Height:           0,
-		validatorsAmount: n,
-	}
-
 	//time.Sleep(time.Millisecond * 500)
 
-	err = pool.simulate(chain)
+	err = pool.simulate()
 
 	if err != nil {
 		panic(err)

@@ -10,6 +10,7 @@ const (
 	NEWVIEW = "newview"
 	BACKVIEWCHANGE = "back-viewchange"
 	FINISHING = "finishing"
+	BACKNEWVIEW = "back-newview"
 )
 
 const (

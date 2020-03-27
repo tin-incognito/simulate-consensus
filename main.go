@@ -6,6 +6,7 @@ import (
 
 var f, n uint64
 var blockChain *Chain
+var pool *Pool
 
 func main(){
 	blockChain = &Chain{
@@ -14,7 +15,7 @@ func main(){
 		validatorsAmount: n,
 	}
 
-	pool := &Pool{}
+	pool = &Pool{}
 	var err error
 
 	n = 4
@@ -38,7 +39,7 @@ func main(){
 
 	f = uint64((n - 1) / 3)
 
-	//time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 1000)
 
 	err = pool.simulate()
 
@@ -46,6 +47,6 @@ func main(){
 		panic(err)
 	}
 
-	time.Sleep(time.Millisecond * 1500)
+	time.Sleep(time.Second * 20)
 
 }

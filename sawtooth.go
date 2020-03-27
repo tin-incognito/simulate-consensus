@@ -193,8 +193,6 @@ func (actor Actor) start() error{
 
 				// This is still preparing phase
 
-				//log.Println("Receive prepare msg")
-
 				currActor := actor.CurrNode.consensusEngine.BFTProcess
 
 				if prepareMsg.prevMsgHash == nil {
@@ -248,8 +246,6 @@ func (actor Actor) start() error{
 						//return
 					} else {
 
-						//log.Println("amount:", amount)
-
 						//Move to committing phase
 						msg := NormalMsg{
 							hash: 	   utils.GenerateHashV1(),
@@ -262,10 +258,6 @@ func (actor Actor) start() error{
 							block: prepareMsg.block,
 							prevMsgHash: prepareMsg.prevMsgHash,
 						}
-
-						//log.Println("actor.CurrNode", actor.CurrNode)
-
-
 
 						for _, member := range currActor.Validators{
 							go func(member *Node){
@@ -383,10 +375,10 @@ func (actor Actor) start() error{
 				//Return to pre preparing phase
 				currActor.chainHandler.print()
 
-				log.Println(currActor.CurrNode.IsProposer)
-				log.Println(currActor.CurrNode.index)
+				currActor.startNormalMode()
 
-				currActor.ProposalNode.consensusEngine.BFTProcess.BroadcastMsgCh <- true
+				//time.Sleep(time.Millisecond * 1500)
+
 				//
 
 
@@ -563,9 +555,57 @@ func (actor Actor) start() error{
 			}
 		}
 	}()
-
-
 	return nil
+}
+
+func (actor *Actor) startNormalMode(){
+
+	time.Sleep(time.Millisecond * 1000)
+
+	err := pool.start()
+	if err != nil{
+		return
+	}
+
+	block, err := actor.chainHandler.CreateBlock()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	msg := NormalMsg{
+		hash: utils.GenerateHashV1(),
+		Type:      PREPREPARE,
+		View:      actor.chainHandler.View(),
+		SeqNum:    actor.chainHandler.SeqNumber(),
+		SignerID:  actor.CurrNode.index,
+		Timestamp: uint64(time.Now().Unix()),
+		BlockID:   &block.Index,
+		prevMsgHash: nil,
+	}
+
+	//log.Println("[Broadcast]", msg.hash)
+
+	msg.block = block
+
+	if actor.BFTMsgLogs[msg.hash] == nil{
+		actor.BFTMsgLogs[msg.hash] = new(NormalMsg)
+		*actor.BFTMsgLogs[msg.hash] = msg
+	} else {
+		actor.BFTMsgLogs[msg.hash].Amount++
+	}
+
+	for _, member := range actor.Validators{
+		//TODO: Research for more effective broadcast way
+		// Or may be broadcast by go routine
+		//log.Println("Send pre prepare msg")
+
+		if member.index == actor.CurrNode.index{
+			continue
+		}
+
+		member.consensusEngine.BFTProcess.PrePrepareMsgCh <- msg
+	}
 }
 
 //ViewChanging ...

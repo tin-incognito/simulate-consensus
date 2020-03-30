@@ -141,8 +141,8 @@ func simulate(){
 		//	//start()
 		//}
 		nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
-		time.Sleep(time.Millisecond * 500)
-		nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
+		//time.Sleep(time.Millisecond * 500)
+		//nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
 	}()
 
 }

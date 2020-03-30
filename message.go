@@ -11,6 +11,8 @@ type NormalMsg struct{
 	block *Block
 	Amount uint64
 	prevMsgHash *string
+	prepareExpire bool
+	commitExpire bool
 }
 
 type ViewMsg struct{

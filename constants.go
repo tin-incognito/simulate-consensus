@@ -5,15 +5,17 @@ const (
 	PREPREPARE = "preprepare"
 	PREPARE = "prepare"
 	COMMIT = "commit"
-	SEALREQUEST = "sealrequest"
 	PREPAREVIEWCHANGE = "prepare-viewchange"
 	NEWVIEW = "newview"
 	BACKVIEWCHANGE = "back-viewchange"
-	FINISHING = "finishing"
 	BACKNEWVIEW = "back-newview"
+	VERIFYNEWVIEW = "verify-newview"
+	BACKVERIFYNEWVIEW = "back-verify-newview"
 )
 
 const (
 	NormalMode = "normal_mode"
 	ViewChangeMode = "viewchange_mode"
 )
+
+//prepareviewchange -> viewchange -> backviewchange -> newview -> verify-newview -> back-verify-newview -> back-newview -> normal mode

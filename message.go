@@ -24,4 +24,8 @@ type ViewMsg struct{
 	prevMsgHash *string
 	amount      uint64
 	singedMsgs  []*ViewMsg
+	owner int
+	isValid bool
+	backVerifyNewViewExpire bool
+	backNewView bool
 }

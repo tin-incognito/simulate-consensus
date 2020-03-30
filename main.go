@@ -14,14 +14,6 @@ func main(){
 	// Init array for nodes (not necessary for new class)
 	//
 
-	//blockChain = &Chain{
-	//	LatestBlock:      nil,
-	//	Height:           0,
-	//	validatorsAmount: n,
-	//}
-
-	//pool = &Pool{}
-
 	//var err error
 	n = 4
 
@@ -30,8 +22,6 @@ func main(){
 	initNodes(int(n))
 	start()
 	simulate()
-
-	//time.Sleep(time.Millisecond * 1000)
 
 	time.Sleep(time.Second * 5)
 

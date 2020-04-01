@@ -290,12 +290,12 @@ func (actor Actor) start() error{
 				if commitMsg.prevMsgHash == nil {
 					//TODO: Switch to view change mode
 					log.Println("[commit] commit.prevMsgHash == nil")
-					return
+					continue
 				}
 
 				if currActor.BFTMsgLogs[*commitMsg.prevMsgHash] == nil{
 					//TODO: Switch to view change mode
-					return
+					continue
 				}
 
 				//Save it to somewhere else for every node (actor of consensus engine)
@@ -323,83 +323,77 @@ func (actor Actor) start() error{
 					}
 				}
 
-				currActor.commitMutex.Unlock()
+				if uint64(amount) > uint64(2*n/3){
+					//Move to finishing phase
 
-				go func(amount int) {
-					time.Sleep(time.Millisecond * 500)
-					currActor.commitMutex.Lock()
-					if uint64(amount) > uint64(2*n/3){
-						//Move to finishing phase
+					//TODO: Stop commit timeout here
 
-						//TODO: Stop commit timeout here
+					if !currActor.BFTMsgLogs[*commitMsg.prevMsgHash].commitExpire {
 
-						if !currActor.BFTMsgLogs[*commitMsg.prevMsgHash].commitExpire {
+						//Update current chain
+						check, err := currActor.chainHandler.ValidateBlock(commitMsg.block)
+						if err != nil || !check {
+							//TODO: Switch to view change mode
+							log.Println("Error in validating block")
+							return
+						}
+						check, err = currActor.chainHandler.InsertBlock(commitMsg.block)
+						if err != nil || !check {
+							//TODO: Switch to view change mode
+							log.Println("Error in inserting block")
+							return
+						}
+						//Increase sequence number
+						err = currActor.chainHandler.IncreaseSeqNum()
+						if err != nil {
+							log.Println("Error in increasing sequence number")
+							return
+						}
 
-							//Update current chain
-							check, err := currActor.chainHandler.ValidateBlock(commitMsg.block)
-							if err != nil || !check {
-								//TODO: Switch to view change mode
-								log.Println("Error in validating block")
-								return
+						if currActor.CurrNode.IsProposer {
+							currActor.logBlockMutex.Lock()
+							log.Println("proposer:", currActor.CurrNode.index)
+							currActor.chainHandler.print()
+							currActor.logBlockMutex.Unlock()
+						}
+
+						currActor.BFTMsgLogs[*commitMsg.prevMsgHash].commitExpire = true
+
+						//// FOR REAL SIMULATE
+						//TODO:
+						// Update status of proposer
+						// Calculate for random proposer (for simulating, we just increase index of node)
+						// Send a msg to system for switching to other view change mode
+
+						err = currActor.CurrNode.updateAfterNormalMode()
+						if err != nil{
+							log.Println(err)
+						}
+
+						if currActor.CurrNode.IsProposer{
+							currActor.CurrNode.IsProposer = false
+							rdNum := rand.Intn(int(n) - 0) + 0
+
+							//log.Println("rdNum:", rdNum)
+
+							viewChangeMsg := ViewMsg{
+								Type: PREPAREVIEWCHANGE,
+								Timestamp: uint64(time.Now().Unix()),
+								hash: utils.GenerateHashV1(),
+								View: currActor.chainHandler.View(),
+								SignerID: currActor.CurrNode.index,
+								prevMsgHash: nil,
 							}
-							check, err = currActor.chainHandler.InsertBlock(commitMsg.block)
-							if err != nil || !check {
-								//TODO: Switch to view change mode
-								log.Println("Error in inserting block")
-								return
-							}
-							//Increase sequence number
-							err = currActor.chainHandler.IncreaseSeqNum()
-							if err != nil {
-								log.Println("Error in increasing sequence number")
-								return
-							}
 
-							if currActor.CurrNode.IsProposer {
-								currActor.logBlockMutex.Lock()
-								log.Println("proposer:", currActor.CurrNode.index)
-								currActor.chainHandler.print()
-								currActor.logBlockMutex.Unlock()
-							}
+							time.Sleep(time.Millisecond * 200)
 
-							currActor.BFTMsgLogs[*commitMsg.prevMsgHash].commitExpire = true
+							currActor.Validators[rdNum].consensusEngine.BFTProcess.ViewChangeMsgCh <- viewChangeMsg
 
-							//// FOR REAL SIMULATE
-							//TODO:
-							// Update status of proposer
-							// Calculate for random proposer (for simulating, we just increase index of node)
-							// Send a msg to system for switching to other view change mode
-
-							err = currActor.CurrNode.updateAfterNormalMode()
-							if err != nil{
-								log.Println(err)
-							}
-
-							if currActor.CurrNode.IsProposer{
-								currActor.CurrNode.IsProposer = false
-								rdNum := rand.Intn(int(n) - 0) + 0
-
-								//log.Println("rdNum:", rdNum)
-
-								viewChangeMsg := ViewMsg{
-									Type: PREPAREVIEWCHANGE,
-									Timestamp: uint64(time.Now().Unix()),
-									hash: utils.GenerateHashV1(),
-									View: currActor.chainHandler.View(),
-									SignerID: currActor.CurrNode.index,
-									prevMsgHash: nil,
-								}
-
-								time.Sleep(time.Millisecond * 200)
-
-								currActor.Validators[rdNum].consensusEngine.BFTProcess.ViewChangeMsgCh <- viewChangeMsg
-
-							}
 						}
 					}
-
-					currActor.commitMutex.Unlock()
-				}(amount)
+				}
+				
+				currActor.commitMutex.Unlock()
 
 				//For starting a view change mode:
 				// - The idle timeout expires

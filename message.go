@@ -26,6 +26,7 @@ type ViewMsg struct{
 	singedMsgs  []*ViewMsg
 	owner int
 	isValid bool
+	backViewChangeExpire bool
 	backVerifyNewViewExpire bool
 	backNewView bool
 }

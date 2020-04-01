@@ -135,11 +135,11 @@ func simulate(){
 	}
 
 	go func(){
-		for {
-			nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
-			time.Sleep(time.Millisecond * 500)
-		}
-		//nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
+		//for {
+		//	nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
+		//	time.Sleep(time.Millisecond * 500)
+		//}
+		nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
 
 	}()
 

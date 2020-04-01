@@ -17,13 +17,24 @@ type Node struct{
 	privateKey      string
 	isEnableMining    bool
 	consensusEngine *Engine
-	ViewNumber uint64
 	CurrSeqNumber uint64
 	CurrHeadOfChain uint64
 	PhaseStatus int
 	IsProposer bool
 	Mode string
 	View uint64
+}
+
+//updateAfterNormalMode ...
+func (node *Node) updateAfterNormalMode() error{
+	node.CurrHeadOfChain = node.consensusEngine.BFTProcess.chainHandler.Height()
+	node.CurrSeqNumber = node.consensusEngine.BFTProcess.chainHandler.SeqNumber()
+	return nil
+}
+
+//updateAfterViewChangeMode ...
+func (node *Node) updateAfterViewChangeMode() error{
+	return  nil
 }
 
 //createNode for initiating node in network
@@ -38,7 +49,6 @@ func (node *Node) createNode(index int) (*Node, error){
 		privateKey:      utils.GenerateKey(),
 		isEnableMining:  true,
 		consensusEngine: NewEngine(),
-		ViewNumber: 0,
 		CurrSeqNumber: 0,
 		CurrHeadOfChain: 0,
 		PhaseStatus: 0,

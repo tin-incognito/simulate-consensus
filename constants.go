@@ -11,6 +11,7 @@ const (
 	BACKNEWVIEW = "back-newview"
 	VERIFYNEWVIEW = "verify-newview"
 	BACKVERIFYNEWVIEW = "back-verify-newview"
+	VIEWCHANGEFINISH = "viewchange-finish"
 )
 
 const (
@@ -18,4 +19,4 @@ const (
 	ViewChangeMode = "viewchange_mode"
 )
 
-//prepareviewchange -> viewchange -> backviewchange -> newview -> verify-newview -> back-verify-newview -> back-newview -> normal mode
+//prepareviewchange -> viewchange -> backviewchange -> newview -> verify-newview -> back-verify-newview -> back-newview -> viewchange finish -> normal mode

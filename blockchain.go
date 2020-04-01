@@ -22,11 +22,16 @@ type Block struct{
 //Chain ...
 type Chain struct{
 	LatestBlock *Block
-	Height uint64
+	height uint64
 	validatorsAmount uint64
 	view uint64
 	seqNumber uint64
 	logMutex sync.Mutex
+}
+
+//Height ...
+func (chain *Chain) Height() uint64{
+	return chain.height
 }
 
 //print ...
@@ -78,10 +83,10 @@ func (chain Chain) CreateBlock() (*Block, error){
 	hash := utils.GenerateHashV1()
 
 	res := &Block{
-		Index: 		  chain.Height,
+		Index: 		  chain.height,
 		Hash:         hash,
 		PrevHash:     prevHash,
-		Height:       chain.Height + 1,
+		Height:       chain.height + 1,
 		Timestamp:    uint64(time.Now().Unix()),
 		PrevBlock:    chain.LatestBlock,
 	}
@@ -109,7 +114,7 @@ func (chain *Chain) InsertBlock(block *Block) (bool, error){
 	block.PrevHash = prevHash
 
 	chain.LatestBlock = block
-	chain.Height++
+	chain.height++
 
 	return true, nil
 }

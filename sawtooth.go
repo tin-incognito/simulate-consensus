@@ -653,7 +653,7 @@ func (actor Actor) start() error{
 						if uint64(amount) <= uint64(2*n/3){
 							//TODO: Restart new view change mode
 							//log.Println("[back viewchange] Amount view change < 2n/3")
-							currActor.backViewChangeMutex.Unlock()
+							//currActor.backViewChangeMutex.Unlock()
 							continue
 						}
 

@@ -1,9 +1,5 @@
 package main
 
-import (
-	"time"
-)
-
 var f, n uint64
 var pool *Pool
 var nodes map[int]*Node
@@ -23,6 +19,7 @@ func main(){
 	start()
 	simulate()
 
-	time.Sleep(time.Second * 5)
+	select {
 
+	}
 }

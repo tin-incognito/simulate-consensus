@@ -30,3 +30,14 @@ type ViewMsg struct{
 	backVerifyNewViewExpire bool
 	backNewView bool
 }
+
+//FaultyMsg ...
+type FaultyMsg struct{
+	hash string
+	Type string
+	signerID int
+	timestamp uint64
+	prevMsgHash *string
+	note string
+	singedMsg map[int]string
+}

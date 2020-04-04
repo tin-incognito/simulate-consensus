@@ -37,10 +37,10 @@ func (chain *Chain) Height() uint64{
 //print ...
 func (chain *Chain) print(){
 	chain.logMutex.Lock()
-	log.Println("chain height:", chain.Height)
+	log.Println("chain height:", chain.Height())
 	log.Println("latest block:", chain.LatestBlock)
 	log.Println("view:", chain.view)
-	log.Println("seqnumber:", chain.seqNumber)
+	log.Println("sequence number:", chain.seqNumber)
 	chain.logMutex.Unlock()
 }
 

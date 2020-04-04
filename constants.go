@@ -29,12 +29,13 @@ const (
 const (
 	NormalMode = "normal_mode"
 	ViewChangeMode = "viewchange_mode"
-	FaultyMode = "faulty-mode"
-	AfterFaultyMode = "after-faulty-mode"
 )
 
 //Viewchange flow:
-// viewchange -> new
+// viewchange -> newview -> normal mode
 
 //Normal flow:
 //broadcast -> pre prepare -> prepare -> commit
+
+//Faulty flow:
+//sub-phase -> viewchange -> ... -> end of viewchange flow -> normal mode

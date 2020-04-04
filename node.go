@@ -25,12 +25,6 @@ type Node struct{
 	View uint64
 }
 
-//updateFaultMode ...
-func (node *Node) updateFaultMode() error{
-	node.Mode = FaultyMode
-	return nil
-}
-
 //updateAfterNormalMode ...
 func (node *Node) updateAfterNormalMode() error{
 	node.CurrHeadOfChain = node.consensusEngine.BFTProcess.chainHandler.Height()

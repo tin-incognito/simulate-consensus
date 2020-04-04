@@ -1,5 +1,17 @@
 package main
 
+//MsgHandler ...
+type MsgHandler interface {
+	save() error
+	getByHash(string, map[string]msgGetter) msgGetter
+}
+
+//msgGetter ...
+type msgGetter interface {
+
+}
+
+//NormalMsg ...
 type NormalMsg struct{
 	hash string
 	Type string // Below type
@@ -15,6 +27,7 @@ type NormalMsg struct{
 	commitExpire bool
 }
 
+//ViewMsg ...
 type ViewMsg struct{
 	hash        string
 	Type        string // Below type
@@ -23,21 +36,22 @@ type ViewMsg struct{
 	Timestamp   uint64
 	prevMsgHash *string
 	amount      uint64
-	singedMsgs  []*ViewMsg
+	hashSignedMsgs  []string
 	owner int
 	isValid bool
-	backViewChangeExpire bool
-	backVerifyNewViewExpire bool
-	backNewView bool
 }
 
-//FaultyMsg ...
-type FaultyMsg struct{
-	hash string
-	Type string
-	signerID int
-	timestamp uint64
-	prevMsgHash *string
-	note string
-	singedMsg map[int]string
-}
+//func (normalMsg *NormalMsg) getByHash (hash string) msgGetter{
+//	return normalMsg
+//}
+//
+////save ...
+//func (normalMsg *NormalMsg) save() error{
+//	return nil
+//}
+//
+////save ...
+//func (viewMsg *ViewMsg) save() error{
+//	return nil
+//}
+

@@ -40,6 +40,7 @@ type Actor struct{
 	viewChangeExpire bool
 	viewChangeAmount map[int]int
 	sendMsgMutex sync.Mutex
+	TestCh chan string
 }
 
 func NewActor() *Actor{
@@ -62,6 +63,7 @@ func NewActor() *Actor{
 		timeOutCh: make(chan bool, 20),
 		errCh: make(chan error, 20),
 		viewChangeAmount: make(map[int]int),
+		TestCh: make(chan string),
 	}
 
 	return res
@@ -88,6 +90,9 @@ func (actor Actor) start() error{
 			case err := <- actor.errCh:
 				log.Println("err:", err)
 				continue
+
+			case test := <-actor.TestCh:
+				log.Println("test channel:", test)
 
 			case _ = <- actor.BroadcastMsgCh:
 
@@ -444,8 +449,7 @@ func (actor Actor) start() error{
 						continue
 					}
 
-					//time.Sleep(time.Millisecond * 200)
-					//currActor.switchToviewChangeMode()
+					time.Sleep(time.Millisecond * 100)
 
 					currActor.ViewChanging(currActor.CurrNode.View + 1)
 
@@ -465,11 +469,16 @@ func (actor Actor) start() error{
 						*currActor.ViewChangeMsgLogs[msg.hash] = msg
 					}
 
-					//Send messages to other nodes
-					for i, element := range currActor.Validators{
-						log.Println("Send from node:", i)
-						element.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
-					}
+					currActor.TestCh <- "Test"
+					
+					////Send messages to other nodes
+					////currActor.sendMsgMutex.Lock()
+					//for i, element := range currActor.Validators{
+					//	log.Println("Send from :", currActor.CurrNode.index, "to: ", i)
+					//	//element.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
+					//	element.consensusEngine.BFTProcess.TestCh <- "Test"
+					//}
+					////currActor.sendMsgMutex.Unlock()
 
 				}
 
@@ -479,9 +488,10 @@ func (actor Actor) start() error{
 
 				currActor := actor.CurrNode.consensusEngine.BFTProcess
 
-				log.Println("from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index)
+				log.Println("Receive from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index, viewChangeMsg)
 
 				if currActor.CurrNode.Mode != ViewChangeMode{
+					log.Println("Block by viewchange mode verifier")
 					continue
 				}
 
@@ -521,13 +531,6 @@ func (actor Actor) start() error{
 
 						if !isDup{
 							currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
-
-							//TODO:
-							// For purpose of simulate we will set default for this will be true
-							// We can random in this function for value true or false
-							viewChangeMsg.isValid = true
-							//
-
 							*currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
 						}
 					}
@@ -550,50 +553,52 @@ func (actor Actor) start() error{
 						continue
 					}
 
-					if !currActor.viewChangeExpire {
+					if len(currActor.ViewChangeMsgCh) == 0 {
+						if !currActor.viewChangeExpire {
 
-						currActor.viewChangeExpire = true
+							currActor.viewChangeExpire = true
 
-						if currActor.isPrimaryNode(int(currActor.View())){
-							msg := ViewMsg{
-								hash: utils.GenerateHashV1(),
-								Type:       NEWVIEW,
-								View:       viewChangeMsg.View,
-								SignerID:   currActor.CurrNode.index,
-								Timestamp:  uint64(time.Now().Unix()),
-								prevMsgHash: viewChangeMsg.prevMsgHash, //viewchange msg hash
-								owner: currActor.CurrNode.index,
-							}
+							if currActor.isPrimaryNode(int(currActor.View())){
+								msg := ViewMsg{
+									hash: utils.GenerateHashV1(),
+									Type:       NEWVIEW,
+									View:       viewChangeMsg.View,
+									SignerID:   currActor.CurrNode.index,
+									Timestamp:  uint64(time.Now().Unix()),
+									prevMsgHash: viewChangeMsg.prevMsgHash, //viewchange msg hash
+									owner: currActor.CurrNode.index,
+								}
 
-							for _, msg := range currActor.ViewChangeMsgLogs{
-								if msg.View == currActor.View() && msg.Type == VIEWCHANGE{
-									msg.hashSignedMsgs = append(msg.hashSignedMsgs, msg.hash)
+								for _, msg := range currActor.ViewChangeMsgLogs{
+									if msg.View == currActor.View() && msg.Type == VIEWCHANGE{
+										msg.hashSignedMsgs = append(msg.hashSignedMsgs, msg.hash)
+									}
+								}
+
+								//Save view change msg to somewhere
+								if currActor.ViewChangeMsgLogs[msg.hash] == nil {
+									currActor.ViewChangeMsgLogs[msg.hash] = new(ViewMsg)
+									*currActor.ViewChangeMsgLogs[msg.hash] = msg
+								}
+
+								//Send messages to other nodes
+								for _, element := range currActor.Validators{
+									//Define message for sending back to primary node
+
+									//log.Println("Send new view msg to other nodes")
+
+									if currActor.CurrNode.index != element.index{
+										element.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
+									}
 								}
 							}
 
-							//Save view change msg to somewhere
-							if currActor.ViewChangeMsgLogs[msg.hash] == nil {
-								currActor.ViewChangeMsgLogs[msg.hash] = new(ViewMsg)
-								*currActor.ViewChangeMsgLogs[msg.hash] = msg
-							}
-
-							//Send messages to other nodes
-							for _, element := range currActor.Validators{
-								//Define message for sending back to primary node
-
-								//log.Println("Send new view msg to other nodes")
-
-								if currActor.CurrNode.index != element.index{
-									element.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
-								}
-							}
+							//TODO:
+							// Start new view of view change mode here
 						}
 
-						//TODO:
-						// Start new view of view change mode here
+						currActor.viewChangeMutex.Unlock()
 					}
-
-					currActor.viewChangeMutex.Unlock()
 
 				case NEWVIEW:
 

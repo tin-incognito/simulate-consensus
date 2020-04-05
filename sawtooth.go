@@ -422,16 +422,20 @@ func (actor Actor) start() error{
 				}
 
 				//Save it to somewhere else for every node (actor of consensus engine)
-				currActor.saveMsgMutex.Lock()
+				currActor.commitMutex.Lock()
 
 				if currActor.BFTMsgLogs[commitMsg.hash] == nil{
+					currActor.saveMsgMutex.Lock()
 					currActor.BFTMsgLogs[commitMsg.hash] = new(NormalMsg)
 					*currActor.BFTMsgLogs[commitMsg.hash] = commitMsg
+					currActor.saveMsgMutex.Unlock()
 				} else {
+					currActor.saveMsgMutex.Lock()
 					currActor.BFTMsgLogs[commitMsg.hash].Amount++
+					currActor.saveMsgMutex.Unlock()
 				}
 
-				currActor.saveMsgMutex.Unlock()
+				currActor.commitMutex.Unlock()
 
 				//TODO: Checking for > 2n/3
 
@@ -439,14 +443,14 @@ func (actor Actor) start() error{
 
 				//TODO: Optimize by once a node has greater 2n/3 switch to commit phase
 
-				currActor.amountMsgTimer = time.NewTimer(time.Millisecond * 100)
+				//currActor.amountMsgTimer = time.NewTimer(time.Millisecond * 100)
 
-				currActor.wg.Add(1)
-				go func(){
-					defer func() {
-						currActor.amountMsgTimer.Stop()
-						currActor.wg.Done()
-					}()
+				//currActor.wg.Add(1)
+				//go func(){
+				//	defer func() {
+				//		currActor.amountMsgTimer.Stop()
+				//		currActor.wg.Done()
+				//	}()
 
 					//select {
 					//case <-currActor.amountMsgTimer.C:
@@ -526,7 +530,7 @@ func (actor Actor) start() error{
 					//	currActor.commitMutex.Unlock()
 					//}
 
-				}()
+				//}()
 
 			case viewChangeMsg := <- actor.ViewChangeMsgCh:
 

@@ -1,15 +1,15 @@
 package main
 
-//MsgHandler ...
-type MsgHandler interface {
-	save() error
-	getByHash(string, map[string]msgGetter) msgGetter
-}
-
-//msgGetter ...
-type msgGetter interface {
-
-}
+////MsgHandler ...
+//type MsgHandler interface {
+//	save() error
+//	getByHash(string, map[string]msgGetter) msgGetter
+//}
+//
+////msgGetter ...
+//type msgGetter interface {
+//
+//}
 
 //NormalMsg ...
 type NormalMsg struct{
@@ -37,7 +37,6 @@ type ViewMsg struct{
 	prevMsgHash *string
 	amount      uint64
 	hashSignedMsgs  []string
-	owner int
 	isValid bool
 }
 

@@ -3,17 +3,42 @@ package main
 import (
 	"github.com/tin-incognito/simulate-consensus/utils"
 	"log"
-	"math/rand"
 	"time"
 )
 
 //switchToNormalMode ...
 func (actor *Actor) switchToNormalMode(){
+
+	defer func(){
+		actor.wg.Done()
+	}()
+
+	actor.switchMutex.Lock()
+
+	log.Println("node ", actor.CurrNode.index, "switch back to normal mode")
+
 	actor.CurrNode.Mode = NormalMode
+	actor.ProposalNode = actor.Validators[actor.calculatePrimaryNode(int(actor.View()))]
+
+	if actor.isPrimaryNode(int(actor.View())){
+		actor.CurrNode.IsProposer = true
+	}
+
+	actor.switchMutex.Unlock()
 }
 
 //switchToViewChangeMode ...
 func (actor *Actor) switchToviewChangeMode(){
+
+	actor.switchMutex.Lock()
+
+	defer func(){
+		actor.wg.Done()
+	}()
+
+	if actor.CurrNode.IsProposer{
+		actor.CurrNode.IsProposer = false
+	}
 
 	actor.ViewChanging(actor.CurrNode.View + 1)
 
@@ -24,7 +49,6 @@ func (actor *Actor) switchToviewChangeMode(){
 		SignerID:   actor.CurrNode.index,
 		Timestamp:  uint64(time.Now().Unix()),
 		prevMsgHash: nil,
-		owner: actor.CurrNode.index,
 	}
 
 	//Save view change msg to somewhere
@@ -33,50 +57,24 @@ func (actor *Actor) switchToviewChangeMode(){
 		*actor.ViewChangeMsgLogs[msg.hash] = msg
 	}
 
-	actor.sendMsgMutex.Lock()
+	//actor.sendMsgMutex.Lock()
 	//Send messages to other nodes
-	for i, _ := range actor.Validators{
-		//log.Println("Send from node:", i)
-		//element.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
-		actor.Validators[i].consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
+	for _, element := range actor.Validators{
+		element.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
 	}
-	actor.sendMsgMutex.Unlock()
+	//actor.sendMsgMutex.Unlock()
+
+	actor.switchMutex.Unlock()
+}
+
+//calculatePrimaryNode ...
+func (actor *Actor) calculatePrimaryNode(view int) int{
+	return view % len(actor.Validators)
 }
 
 func (actor *Actor) isPrimaryNode(view int) bool{
 	res := view % len(actor.Validators)
 	return res == actor.CurrNode.index
-}
-
-//switchToViewChangeMode ...
-func (actor *Actor) swtichToViewChangeMode() error{
-
-	err := actor.CurrNode.updateAfterNormalMode()
-	if err != nil{
-		log.Println(err)
-		return err
-	}
-
-	if actor.CurrNode.IsProposer{
-		actor.CurrNode.IsProposer = false
-		rdNum := rand.Intn(int(n) - 0) + 0
-
-		//log.Println("rdNum:", rdNum)
-
-		viewChangeMsg := ViewMsg{
-			Type: PREPAREVIEWCHANGE,
-			Timestamp: uint64(time.Now().Unix()),
-			hash: utils.GenerateHashV1(),
-			View: actor.chainHandler.View(),
-			SignerID: actor.CurrNode.index,
-			prevMsgHash: nil,
-		}
-
-		//time.Sleep(time.Millisecond * 200)
-		actor.Validators[rdNum].consensusEngine.BFTProcess.ViewChangeMsgCh <- viewChangeMsg
-	}
-
-	return nil
 }
 
 func (actor *Actor) updateProposalNode(index int) {
@@ -85,17 +83,21 @@ func (actor *Actor) updateProposalNode(index int) {
 
 //updateNormalMode ...
 func (actor *Actor) updateNormalMode(view uint64) {
+	actor.modeMutex.Lock()
 	actor.CurrNode.Mode = NormalMode
+	actor.modeMutex.Unlock()
 }
 
 //ViewChanging ...
 func (actor *Actor) ViewChanging(v uint64) error{
+	actor.modeMutex.Lock()
 	actor.CurrNode.Mode = ViewChangeMode
 	actor.CurrNode.View = v
 	err := actor.chainHandler.IncreaseView()
 	if err != nil {
 		return err
 	}
+	actor.modeMutex.Unlock()
 	return nil
 }
 

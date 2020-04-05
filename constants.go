@@ -12,17 +12,6 @@ const (
 	VIEWCHANGE = "viewchange"
 	PREPAREVIEWCHANGE = "prepare-viewchange"
 	NEWVIEW = "newview"
-	BACKVIEWCHANGE = "back-viewchange"
-	BACKNEWVIEW = "back-newview"
-	VERIFYNEWVIEW = "verify-newview"
-	BACKVERIFYNEWVIEW = "back-verify-newview"
-	VIEWCHANGEFINISH = "viewchange-finish"
-)
-
-//Faulty mode
-const (
-	FAULTY = "faulty"
-
 )
 
 //Mode

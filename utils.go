@@ -8,63 +8,74 @@ import (
 //switchToNormalMode ...
 func (actor *Actor) switchToNormalMode(){
 
-	defer func(){
-		actor.wg.Done()
-	}()
+	currActor := actor.CurrNode.consensusEngine.BFTProcess
 
-	actor.switchMutex.Lock()
+	//defer func(){
+	//	currActor.wg.Done()
+	//}()
+
+	currActor.switchMutex.Lock()
 
 	//log.Println("node ", actor.CurrNode.index, "switch back to normal mode")
 
-	actor.CurrNode.Mode = NormalMode
-	actor.ProposalNode = actor.Validators[actor.calculatePrimaryNode(int(actor.View()))]
+	currActor.CurrNode.Mode = NormalMode
+	currActor.ProposalNode = currActor.Validators[currActor.calculatePrimaryNode(int(currActor.View()))]
 
-	if actor.isPrimaryNode(int(actor.View())){
-		actor.CurrNode.IsProposer = true
+	if currActor.isPrimaryNode(int(currActor.View())){
+		currActor.CurrNode.IsProposer = true
 	}
 
-	actor.switchMutex.Unlock()
+	currActor.switchMutex.Unlock()
 }
 
 //switchToViewChangeMode ...
 func (actor *Actor) switchToviewChangeMode(){
 
-	actor.switchMutex.Lock()
+	currActor := actor.CurrNode.consensusEngine.BFTProcess
 
-	actor.viewChangeTimer = time.NewTimer(time.Millisecond * 5000)
+	currActor.switchMutex.Lock()
 
-	defer func(){
-		actor.wg.Done()
-	}()
+	currActor.viewChangeTimer = time.NewTimer(time.Millisecond * 5000)
 
-	if actor.CurrNode.IsProposer{
-		actor.CurrNode.IsProposer = false
+	//defer func(){
+	//	currActor.wg.Done()
+	//}()
+
+	if currActor.CurrNode.IsProposer{
+		currActor.CurrNode.IsProposer = false
 	}
 
-	actor.ViewChanging(actor.CurrNode.View + 1)
+	currActor.ViewChanging(currActor.CurrNode.View + 1)
+
+	//currActor.CurrNode.Mode = ViewChangeMode
+	//currActor.CurrNode.View = currActor.CurrNode.View + 1
+	//err := currActor.chainHandler.IncreaseView()
+	//if err != nil {
+	//	return
+	//}
 
 	msg := ViewMsg {
 		hash: utils.GenerateHashV1(),
 		Type:       VIEWCHANGE,
-		View:       actor.CurrNode.View,
-		SignerID:   actor.CurrNode.index,
+		View:       currActor.CurrNode.View,
+		SignerID:   currActor.CurrNode.index,
 		Timestamp:  uint64(time.Now().Unix()),
 		prevMsgHash: nil,
 	}
 
 	//Save view change msg to somewhere
-	if actor.ViewChangeMsgLogs[msg.hash] == nil {
-		actor.ViewChangeMsgLogs[msg.hash] = new(ViewMsg)
-		*actor.ViewChangeMsgLogs[msg.hash] = msg
+	if currActor.ViewChangeMsgLogs[msg.hash] == nil {
+		currActor.ViewChangeMsgLogs[msg.hash] = new(ViewMsg)
+		*currActor.ViewChangeMsgLogs[msg.hash] = msg
 	}
 
 	//actor.sendMsgMutex.Lock()
 	//Send messages to other nodes
-	for _, element := range actor.Validators{
+	for _, element := range currActor.Validators{
 		element.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
 	}
 
-	actor.switchMutex.Unlock()
+	currActor.switchMutex.Unlock()
 }
 
 //calculatePrimaryNode ...
@@ -78,32 +89,38 @@ func (actor *Actor) isPrimaryNode(view int) bool{
 }
 
 func (actor *Actor) updateProposalNode(index int) {
-	actor.ProposalNode = actor.Validators[index]
+	currActor := actor.CurrNode.consensusEngine.BFTProcess
+	currActor.ProposalNode = currActor.Validators[index]
 }
 
 //updateNormalMode ...
 func (actor *Actor) updateNormalMode(view uint64) {
-	actor.modeMutex.Lock()
-	actor.CurrNode.Mode = NormalMode
-	actor.modeMutex.Unlock()
+	currActor := actor.CurrNode.consensusEngine.BFTProcess
+	currActor.modeMutex.Lock()
+	currActor.CurrNode.Mode = NormalMode
+	currActor.modeMutex.Unlock()
 }
 
 //ViewChanging ...
 func (actor *Actor) ViewChanging(v uint64) error{
-	actor.modeMutex.Lock()
-	actor.CurrNode.Mode = ViewChangeMode
-	actor.CurrNode.View = v
-	err := actor.chainHandler.IncreaseView()
+	currActor := actor.CurrNode.consensusEngine.BFTProcess
+
+	currActor.modeMutex.Lock()
+	currActor.CurrNode.Mode = ViewChangeMode
+	currActor.CurrNode.View = v
+	err := currActor.chainHandler.IncreaseView()
 	if err != nil {
 		return err
 	}
-	actor.modeMutex.Unlock()
+	currActor.modeMutex.Unlock()
 	return nil
 }
 
 func (actor *Actor) initValidators(m map[int]*Node) {
+	currActor := actor.CurrNode.consensusEngine.BFTProcess
+
 	for i, element := range m{
-		actor.Validators[i] = element
+		currActor.Validators[i] = element
 	}
 }
 

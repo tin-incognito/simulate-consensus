@@ -6,10 +6,6 @@ var nodes map[int]*Node
 
 func main(){
 
-	// Refactor add chain to node class
-	// Init array for nodes (not necessary for new class)
-	//
-
 	//var err error
 	n = 4
 
@@ -18,6 +14,8 @@ func main(){
 	initNodes(int(n))
 	start()
 	simulate()
+
+	//startGlobalTimer()
 
 	select {
 

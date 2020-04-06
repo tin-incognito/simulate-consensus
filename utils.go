@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/tin-incognito/simulate-consensus/utils"
-	"log"
 	"time"
 )
 
@@ -15,7 +14,7 @@ func (actor *Actor) switchToNormalMode(){
 
 	actor.switchMutex.Lock()
 
-	log.Println("node ", actor.CurrNode.index, "switch back to normal mode")
+	//log.Println("node ", actor.CurrNode.index, "switch back to normal mode")
 
 	actor.CurrNode.Mode = NormalMode
 	actor.ProposalNode = actor.Validators[actor.calculatePrimaryNode(int(actor.View()))]

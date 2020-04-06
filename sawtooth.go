@@ -100,13 +100,13 @@ func (actor Actor) start() error{
 
 			case _ = <- actor.BroadcastMsgCh:
 
-				log.Println("Broadcast msg")
+				//log.Println("Broadcast msg")
 
 				// This is Pre prepare phase
 				currActor := actor.CurrNode.consensusEngine.BFTProcess
 
 				if currActor.CurrNode.Mode != NormalMode{
-					log.Println("Block by normal mode verifier")
+					//log.Println("Block by normal mode verifier")
 					continue
 				}
 
@@ -194,7 +194,7 @@ func (actor Actor) start() error{
 				//log.Println("prePrepare msg:", prePrepareMsg, "from:", prePrepareMsg.SignerID, "to:", currActor.CurrNode.index)
 
 				if currActor.CurrNode.Mode != NormalMode {
-					log.Println("Block by normal mode verifier")
+					//log.Println("Block by normal mode verifier")
 					continue
 				}
 
@@ -294,7 +294,7 @@ func (actor Actor) start() error{
 				currActor.amountMsgTimer = time.NewTimer(time.Millisecond * 100)
 
 				if currActor.CurrNode.Mode != NormalMode{
-					log.Println("Block by normal mode verifier")
+					//log.Println("Block by normal mode verifier")
 					continue
 				}
 
@@ -386,7 +386,7 @@ func (actor Actor) start() error{
 								}
 
 								for _, member := range currActor.Validators{
-									log.Println("Send commit msg from:", currActor.CurrNode.index, "to:", member.index)
+									//log.Println("Send commit msg from:", currActor.CurrNode.index, "to:", member.index)
 									member.consensusEngine.BFTProcess.CommitMsgCh <- msg
 								}
 
@@ -407,10 +407,10 @@ func (actor Actor) start() error{
 
 				currActor := actor.CurrNode.consensusEngine.BFTProcess
 
-				log.Println("Receive from ", commitMsg.SignerID, "to:", currActor.CurrNode.index)
+				//log.Println("Receive from ", commitMsg.SignerID, "to:", currActor.CurrNode.index)
 
 				if currActor.CurrNode.Mode != NormalMode{
-					log.Println("Block by normal mode verifier")
+					//log.Println("Block by normal mode verifier")
 					continue
 				}
 
@@ -481,7 +481,7 @@ func (actor Actor) start() error{
 
 						if uint64(currActor.BFTMsgLogs[*commitMsg.prevMsgHash].Amount) <= uint64(2*n/3){
 
-							log.Println("Not enough 2/3 amount of votes")
+							//log.Println("Not enough 2/3 amount of votes")
 
 							currActor.wg.Add(1)
 							currActor.switchToviewChangeMode()
@@ -559,7 +559,7 @@ func (actor Actor) start() error{
 				//log.Println("viewchangeMsg:", viewChangeMsg)
 
 				if currActor.CurrNode.Mode != ViewChangeMode{
-					log.Println("Block by viewchange mode verifier")
+					//log.Println("Block by viewchange mode verifier")
 					continue
 				}
 

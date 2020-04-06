@@ -266,6 +266,10 @@ func (actor Actor) start() error{
 							}
 						}
 
+						//// NOT GOOD FOR PRODUCTION
+						//currActor.updateAllNormalMode()
+						////
+
 						currActor.prepareMutex.Unlock()
 
 					case <-currActor.commitTimer.C:
@@ -378,6 +382,12 @@ func (actor Actor) start() error{
 									prevMsgHash: prepareMsg.prevMsgHash,
 								}
 
+								//// NOT GOOD FOR PRODUCTION
+								//currActor.updateAllNormalMode()
+								////
+
+								log.Println("[prepare] mode:", currActor.CurrNode.Mode)
+
 								for _, member := range currActor.Validators{
 									member.consensusEngine.BFTProcess.CommitMsgCh <- msg
 								}
@@ -399,6 +409,7 @@ func (actor Actor) start() error{
 				currActor := actor.CurrNode.consensusEngine.BFTProcess
 
 				log.Println("commitMsg:", commitMsg)
+				log.Println("[commit] mode:", currActor.CurrNode.Mode)
 
 				if currActor.CurrNode.Mode != NormalMode{
 					log.Println("[commit] Block by normal mode verifier")

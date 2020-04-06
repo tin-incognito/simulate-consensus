@@ -136,7 +136,8 @@ func simulate(){
 	nodes[0].IsProposer = true
 
 	for _, element := range nodes{
-		//element := nodes[index]
+
+		element.Mode = NormalMode
 
 		if element.consensusEngine.BFTProcess.ProposalNode == nil {
 			element.consensusEngine.BFTProcess.ProposalNode = nodes[0]
@@ -146,10 +147,6 @@ func simulate(){
 	}
 
 	go func(){
-		//for {
-		//	nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
-		//	time.Sleep(time.Millisecond * 500)
-		//}
 		nodes[0].consensusEngine.BFTProcess.BroadcastMsgCh <- true
 
 	}()

@@ -2,11 +2,26 @@ package main
 
 import (
 	"github.com/tin-incognito/simulate-consensus/utils"
+	"log"
 	"time"
 )
 
+func (actor *Actor) updateAllViewChangeMode(){
+	for _, element := range actor.Validators{
+		element.Mode = ViewChangeMode
+	}
+}
+
+func (actor *Actor) updateAllNormalMode(){
+	for _, element := range actor.Validators{
+		element.Mode = NormalMode
+	}
+}
+
 //switchToNormalMode ...
 func (actor *Actor) switchToNormalMode(){
+
+	log.Println( "View:", actor.CurrNode.View, "Node", actor.CurrNode.index, "switch to normal mode")
 
 	currActor := actor.CurrNode.consensusEngine.BFTProcess
 
@@ -24,6 +39,8 @@ func (actor *Actor) switchToNormalMode(){
 	if currActor.isPrimaryNode(int(currActor.View())){
 		currActor.CurrNode.IsProposer = true
 	}
+
+	log.Println("[switch mode] switch to normal mode:", currActor.CurrNode)
 
 	currActor.switchMutex.Unlock()
 }

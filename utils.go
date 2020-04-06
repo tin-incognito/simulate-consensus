@@ -32,6 +32,8 @@ func (actor *Actor) switchToviewChangeMode(){
 
 	actor.switchMutex.Lock()
 
+	actor.viewChangeTimer = time.NewTimer(time.Millisecond * 5000)
+
 	defer func(){
 		actor.wg.Done()
 	}()
@@ -42,7 +44,7 @@ func (actor *Actor) switchToviewChangeMode(){
 
 	actor.ViewChanging(actor.CurrNode.View + 1)
 
-	msg := ViewMsg{
+	msg := ViewMsg {
 		hash: utils.GenerateHashV1(),
 		Type:       VIEWCHANGE,
 		View:       actor.CurrNode.View,
@@ -62,7 +64,6 @@ func (actor *Actor) switchToviewChangeMode(){
 	for _, element := range actor.Validators{
 		element.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
 	}
-	//actor.sendMsgMutex.Unlock()
 
 	actor.switchMutex.Unlock()
 }

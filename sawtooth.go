@@ -618,6 +618,10 @@ func (actor Actor) start() error{
 								}
 
 								if !isDup{
+
+									log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] currActor.ViewChangeMsgLogs", currActor.ViewChangeMsgLogs)
+									log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] viewChangeMsg.hash", viewChangeMsg.hash)
+
 									currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
 									*currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
 								}

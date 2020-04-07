@@ -40,7 +40,9 @@ func (actor *Actor) switchToNormalMode(){
 		currActor.CurrNode.IsProposer = true
 	}
 
-	log.Println("[switch mode] switch to normal mode:", currActor.CurrNode)
+	currActor.ProposalNode = currActor.Validators[currActor.calculatePrimaryNode(int(currActor.View()))]
+
+	log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[switch mode] switch to normal mode:", currActor.CurrNode)
 
 	currActor.switchMutex.Unlock()
 }
@@ -49,6 +51,8 @@ func (actor *Actor) switchToNormalMode(){
 func (actor *Actor) switchToviewChangeMode(){
 
 	currActor := actor.CurrNode.consensusEngine.BFTProcess
+
+	log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "switch to view change mode")
 
 	currActor.switchMutex.Lock()
 

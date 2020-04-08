@@ -209,9 +209,9 @@ func (actor Actor) start() error{
 				if !(prePrepareMsg.SignerID == currActor.ProposalNode.index) {
 					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[pre prepare] !(prePrepareMsg.SignerID == currActor.ProposalNode.index)")
 
-					//switchViewChangeModeMutex.Lock()
-					//currActor.switchToviewChangeMode()
-					//switchViewChangeModeMutex.Unlock()
+					switchViewChangeModeMutex.Lock()
+					currActor.switchToviewChangeMode()
+					switchViewChangeModeMutex.Unlock()
 
 					continue
 				}
@@ -325,6 +325,8 @@ func (actor Actor) start() error{
 
 				if prepareMsg.prevMsgHash == nil {
 
+					log.Println("[prepare] prepareMsg.prevMsgHash")
+
 					switchViewChangeModeMutex.Lock()
 					currActor.switchToviewChangeMode()
 					switchViewChangeModeMutex.Unlock()
@@ -333,6 +335,8 @@ func (actor Actor) start() error{
 				}
 
 				if currActor.BFTMsgLogs[*prepareMsg.prevMsgHash] == nil {
+
+					log.Println("[prepare] currActor.BFTMsgLogs[*prepareMsg.prevMsgHash]")
 
 					switchViewChangeModeMutex.Lock()
 					currActor.switchToviewChangeMode()
@@ -500,7 +504,9 @@ func (actor Actor) start() error{
 
 				go func(){
 					defer func() {
+						msgTimerMutex.Lock()
 						currActor.amountMsgTimer.Stop()
+						msgTimerMutex.Unlock()
 						//currActor.wg.Done()
 					}()
 
@@ -624,6 +630,9 @@ func (actor Actor) start() error{
 						select {
 						case <-currActor.timeOutCh:
 							if currActor.CurrNode.Mode == ViewChangeMode{
+
+								log.Println("View", currActor.CurrNode.View ,"View change msg from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index)
+
 								if viewChangeMsg.View < currActor.CurrNode.View {
 									//TODO: Restart new view change mode
 									// Send faulty node ask to become primary node msg to other nodes
@@ -674,7 +683,9 @@ func (actor Actor) start() error{
 
 							viewChangeMutex.Unlock()
 
+							timerMutex.Lock()
 							currActor.amountMsgTimer = time.NewTimer(time.Millisecond * 100) //Race condition
+							timerMutex.Unlock()
 
 							go func(){
 								select {
@@ -749,9 +760,13 @@ func (actor Actor) start() error{
 						}
 					}()
 
+					timeOutChMutex.Lock()
 					currActor.timeOutCh <- true
+					timeOutChMutex.Unlock()
 
 				case NEWVIEW:
+
+					log.Println("View", currActor.CurrNode.View , "New view msg from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index)
 
 					go func(){
 						select {
@@ -794,12 +809,14 @@ func (actor Actor) start() error{
 
 							switchNormalModeMutex.Lock()
 							currActor.switchToNormalMode()
-							switchNormalModeMutex.Unlock()
-
 
 							if currActor.isPrimaryNode(int(currActor.View())){
 								currActor.BroadcastMsgCh <- true
+							} else {
+								time.Sleep(time.Millisecond * 50)
 							}
+
+							switchNormalModeMutex.Unlock()
 
 						case <-currActor.viewChangeTimer.C:
 							//currActor.wg.Add(1)

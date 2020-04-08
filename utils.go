@@ -21,7 +21,7 @@ func (actor *Actor) updateAllNormalMode(){
 //switchToNormalMode ...
 func (actor *Actor) switchToNormalMode(){
 
-	log.Println( "View:", actor.CurrNode.View, "Node", actor.CurrNode.index, "switch to normal mode")
+	//log.Println( "View:", actor.CurrNode.View, "Node", actor.CurrNode.index, "switch to normal mode")
 
 	currActor := actor.CurrNode.consensusEngine.BFTProcess
 
@@ -42,7 +42,7 @@ func (actor *Actor) switchToNormalMode(){
 
 	currActor.ProposalNode = currActor.Validators[currActor.calculatePrimaryNode(int(currActor.View()))]
 
-	log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[switch mode] switch to normal mode:", currActor.CurrNode)
+	log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index)
 
 	switchMutex.Unlock()
 }
@@ -56,7 +56,9 @@ func (actor *Actor) switchToviewChangeMode(){
 
 	switchMutex.Lock()
 
+	timerMutex.Lock()
 	currActor.viewChangeTimer = time.NewTimer(time.Millisecond * 5000) /// Race condition
+	timerMutex.Unlock()
 
 	//defer func(){
 	//	currActor.wg.Done()
@@ -66,7 +68,9 @@ func (actor *Actor) switchToviewChangeMode(){
 		currActor.CurrNode.IsProposer = false
 	}
 
+	viewChangingMutex.Lock()
 	currActor.ViewChanging(currActor.CurrNode.View + 1)
+	viewChangingMutex.Unlock()
 
 	msg := ViewMsg {
 		hash: utils.GenerateHashV1(),
@@ -119,9 +123,8 @@ func (actor *Actor) updateNormalMode(view uint64) {
 
 //ViewChanging ...
 func (actor *Actor) ViewChanging(v uint64) error{
-	currActor := actor.CurrNode.consensusEngine.BFTProcess
-
 	modeMutex.Lock()
+	currActor := actor.CurrNode.consensusEngine.BFTProcess
 	currActor.CurrNode.Mode = ViewChangeMode //Race condition
 	currActor.CurrNode.View = v
 	err := currActor.chainHandler.IncreaseView()

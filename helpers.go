@@ -20,6 +20,8 @@ var timerMutex sync.Mutex
 var updateModeMutex sync.Mutex
 var switchViewChangeModeMutex sync.Mutex
 var switchNormalModeMutex sync.Mutex
+var timeOutChMutex sync.Mutex
+var viewChangingMutex sync.Mutex
 
 //Wait group for actor class
 var wgActor sync.WaitGroup

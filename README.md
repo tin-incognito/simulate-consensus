@@ -20,11 +20,6 @@ run cmd: `make run`
 
 run cmd: `make sawtooth`
 
-### Streamlet:
+#### 5 . Race detector:
 
-#### 1. Config:
-
-#### 2. Run:
-
-#### 3. Monitor:
-
+run cmd: `make race`

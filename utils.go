@@ -29,7 +29,7 @@ func (actor *Actor) switchToNormalMode(){
 	//	currActor.wg.Done()
 	//}()
 
-	currActor.switchMutex.Lock()
+	switchMutex.Lock()
 
 	//log.Println("node ", actor.CurrNode.index, "switch back to normal mode")
 
@@ -37,14 +37,14 @@ func (actor *Actor) switchToNormalMode(){
 	currActor.ProposalNode = currActor.Validators[currActor.calculatePrimaryNode(int(currActor.View()))]
 
 	if currActor.isPrimaryNode(int(currActor.View())){
-		currActor.CurrNode.IsProposer = true
+		currActor.CurrNode.IsProposer = true //Race condition
 	}
 
 	currActor.ProposalNode = currActor.Validators[currActor.calculatePrimaryNode(int(currActor.View()))]
 
 	log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[switch mode] switch to normal mode:", currActor.CurrNode)
 
-	currActor.switchMutex.Unlock()
+	switchMutex.Unlock()
 }
 
 //switchToViewChangeMode ...
@@ -54,9 +54,9 @@ func (actor *Actor) switchToviewChangeMode(){
 
 	log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "switch to view change mode")
 
-	currActor.switchMutex.Lock()
+	switchMutex.Lock()
 
-	currActor.viewChangeTimer = time.NewTimer(time.Millisecond * 5000)
+	currActor.viewChangeTimer = time.NewTimer(time.Millisecond * 5000) /// Race condition
 
 	//defer func(){
 	//	currActor.wg.Done()
@@ -67,13 +67,6 @@ func (actor *Actor) switchToviewChangeMode(){
 	}
 
 	currActor.ViewChanging(currActor.CurrNode.View + 1)
-
-	//currActor.CurrNode.Mode = ViewChangeMode
-	//currActor.CurrNode.View = currActor.CurrNode.View + 1
-	//err := currActor.chainHandler.IncreaseView()
-	//if err != nil {
-	//	return
-	//}
 
 	msg := ViewMsg {
 		hash: utils.GenerateHashV1(),
@@ -86,17 +79,19 @@ func (actor *Actor) switchToviewChangeMode(){
 
 	//Save view change msg to somewhere
 	if currActor.ViewChangeMsgLogs[msg.hash] == nil {
-		currActor.ViewChangeMsgLogs[msg.hash] = new(ViewMsg)
+		currActor.ViewChangeMsgLogs[msg.hash] = new(ViewMsg) //Race condition
 		*currActor.ViewChangeMsgLogs[msg.hash] = msg
 	}
 
 	//actor.sendMsgMutex.Lock()
 	//Send messages to other nodes
 	for _, element := range currActor.Validators{
-		element.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
+		go func(node *Node){
+			node.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
+		}(element)
 	}
 
-	currActor.switchMutex.Unlock()
+	switchMutex.Unlock()
 }
 
 //calculatePrimaryNode ...
@@ -117,23 +112,23 @@ func (actor *Actor) updateProposalNode(index int) {
 //updateNormalMode ...
 func (actor *Actor) updateNormalMode(view uint64) {
 	currActor := actor.CurrNode.consensusEngine.BFTProcess
-	currActor.modeMutex.Lock()
+	modeMutex.Lock()
 	currActor.CurrNode.Mode = NormalMode
-	currActor.modeMutex.Unlock()
+	modeMutex.Unlock()
 }
 
 //ViewChanging ...
 func (actor *Actor) ViewChanging(v uint64) error{
 	currActor := actor.CurrNode.consensusEngine.BFTProcess
 
-	currActor.modeMutex.Lock()
-	currActor.CurrNode.Mode = ViewChangeMode
+	modeMutex.Lock()
+	currActor.CurrNode.Mode = ViewChangeMode //Race condition
 	currActor.CurrNode.View = v
 	err := currActor.chainHandler.IncreaseView()
 	if err != nil {
 		return err
 	}
-	currActor.modeMutex.Unlock()
+	modeMutex.Unlock()
 	return nil
 }
 

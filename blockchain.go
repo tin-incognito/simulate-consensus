@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/tin-incognito/simulate-consensus/utils"
 	"log"
-	"sync"
 	"time"
 )
 
@@ -26,7 +25,6 @@ type Chain struct{
 	validatorsAmount uint64
 	view uint64
 	seqNumber uint64
-	logMutex sync.Mutex
 }
 
 //Height ...
@@ -36,12 +34,12 @@ func (chain *Chain) Height() uint64{
 
 //print ...
 func (chain *Chain) print(){
-	chain.logMutex.Lock()
+	logBlockMutex.Lock()
 	log.Println("chain height:", chain.Height())
 	log.Println("latest block:", chain.LatestBlock)
 	log.Println("view:", chain.view)
 	log.Println("sequence number:", chain.seqNumber)
-	chain.logMutex.Unlock()
+	logBlockMutex.Unlock()
 }
 
 func (chain *Chain) latestBlock() *Block{
@@ -102,6 +100,9 @@ func (chain Chain) ValidateBlock(block *Block) (bool, error){
 
 //InsertBlock ...
 func (chain *Chain) InsertBlock(block *Block) (bool, error){
+
+	insertBlockMutex.Lock()
+
 	if !block.IsValid {
 		return false, nil
 	}
@@ -115,6 +116,8 @@ func (chain *Chain) InsertBlock(block *Block) (bool, error){
 
 	chain.LatestBlock = block
 	chain.height++
+
+	insertBlockMutex.Unlock()
 
 	return true, nil
 }

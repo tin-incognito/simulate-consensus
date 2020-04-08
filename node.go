@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/tin-incognito/simulate-consensus/utils"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -130,6 +131,8 @@ func start(){
 	}
 }
 
+var simulateMutex sync.Mutex
+
 func simulate(){
 	log.Println("Start simulating")
 
@@ -139,11 +142,13 @@ func simulate(){
 
 		element.Mode = NormalMode
 
+		simulateMutex.Lock()
 		if element.consensusEngine.BFTProcess.ProposalNode == nil {
-			element.consensusEngine.BFTProcess.ProposalNode = nodes[0]
+			element.consensusEngine.BFTProcess.ProposalNode = nodes[0] // Race condition
 		} else {
-			*element.consensusEngine.BFTProcess.ProposalNode = *nodes[0]
+			*element.consensusEngine.BFTProcess.ProposalNode = *nodes[0] // Race condition
 		}
+		simulateMutex.Unlock()
 	}
 
 	go func(){

@@ -27,4 +27,4 @@ sawtooth:
 	# $(GORUN) sawtooth.go message.go blockchain.go message.go main.go node.go
 	$(GORUN) *.go
 race:
-	$(GORUN) *.go -race
+	$(GORUN) -race *.go

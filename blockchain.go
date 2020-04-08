@@ -42,6 +42,11 @@ func (chain *Chain) print(){
 	logBlockMutex.Unlock()
 }
 
+func (chain *Chain) setView(view uint64) error{
+	chain.view = view
+	return nil
+}
+
 func (chain *Chain) latestBlock() *Block{
 	return chain.LatestBlock
 }

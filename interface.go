@@ -18,5 +18,6 @@ type ChainHandler interface {
 	print()
 	latestBlock() *Block
 	Height() uint64
+	setView(uint64) error
 }
 

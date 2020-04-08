@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/tin-incognito/simulate-consensus/utils"
-	"log"
 	"time"
 )
 
@@ -42,7 +41,7 @@ func (actor *Actor) switchToNormalMode(){
 
 	currActor.ProposalNode = currActor.Validators[currActor.calculatePrimaryNode(int(currActor.View()))]
 
-	log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index)
+	//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index)
 
 	switchMutex.Unlock()
 }
@@ -52,7 +51,7 @@ func (actor *Actor) switchToviewChangeMode(){
 
 	currActor := actor.CurrNode.consensusEngine.BFTProcess
 
-	log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "switch to view change mode")
+	//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "switch to view change mode")
 
 	switchMutex.Lock()
 
@@ -127,7 +126,11 @@ func (actor *Actor) ViewChanging(v uint64) error{
 	currActor := actor.CurrNode.consensusEngine.BFTProcess
 	currActor.CurrNode.Mode = ViewChangeMode //Race condition
 	currActor.CurrNode.View = v
-	err := currActor.chainHandler.IncreaseView()
+
+	//err := currActor.chainHandler.IncreaseView()
+
+	err := currActor.chainHandler.setView(v)
+
 	if err != nil {
 		return err
 	}

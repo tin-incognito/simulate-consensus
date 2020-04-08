@@ -325,7 +325,7 @@ func (actor Actor) start() error{
 
 				if prepareMsg.prevMsgHash == nil {
 
-					log.Println("[prepare] prepareMsg.prevMsgHash")
+					//log.Println("[prepare] prepareMsg.prevMsgHash")
 
 					switchViewChangeModeMutex.Lock()
 					currActor.switchToviewChangeMode()
@@ -336,7 +336,7 @@ func (actor Actor) start() error{
 
 				if currActor.BFTMsgLogs[*prepareMsg.prevMsgHash] == nil {
 
-					log.Println("[prepare] currActor.BFTMsgLogs[*prepareMsg.prevMsgHash]")
+					//log.Println("[prepare] currActor.BFTMsgLogs[*prepareMsg.prevMsgHash]")
 
 					switchViewChangeModeMutex.Lock()
 					currActor.switchToviewChangeMode()
@@ -556,7 +556,7 @@ func (actor Actor) start() error{
 							}
 							check, err = currActor.chainHandler.InsertBlock(commitMsg.block)
 							if err != nil || !check {
-								log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] Error in inserting block")
+								//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] Error in inserting block")
 								//currActor.wg.Add(1)
 								switchViewChangeModeMutex.Lock()
 								currActor.switchToviewChangeMode()
@@ -567,7 +567,7 @@ func (actor Actor) start() error{
 							//Increase sequence number
 							err = currActor.chainHandler.IncreaseSeqNum()
 							if err != nil {
-								log.Println("View", currActor.CurrNode.View, "[commit] Error in increasing sequence number")
+								//log.Println("View", currActor.CurrNode.View, "[commit] Error in increasing sequence number")
 								//currActor.wg.Add(1)
 								switchViewChangeModeMutex.Lock()
 								currActor.switchToviewChangeMode()
@@ -578,7 +578,7 @@ func (actor Actor) start() error{
 
 							if currActor.CurrNode.IsProposer { //Race condition
 								//logBlockMutex.Lock()
-								log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] proposer:", currActor.CurrNode.index)
+								//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] proposer:", currActor.CurrNode.index)
 								currActor.chainHandler.print()
 								//logBlockMutex.Unlock()
 							}
@@ -587,7 +587,7 @@ func (actor Actor) start() error{
 							updateModeMutex.Lock()
 							err = currActor.CurrNode.updateAfterNormalMode()
 							if err != nil{
-								log.Println(err)
+								//log.Println(err)
 								switchViewChangeModeMutex.Lock()
 								currActor.switchToviewChangeMode()
 								switchViewChangeModeMutex.Unlock()
@@ -631,7 +631,7 @@ func (actor Actor) start() error{
 						case <-currActor.timeOutCh:
 							if currActor.CurrNode.Mode == ViewChangeMode{
 
-								log.Println("View", currActor.CurrNode.View ,"View change msg from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index)
+								//log.Println("View", currActor.CurrNode.View ,"View change msg from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index)
 
 								if viewChangeMsg.View < currActor.CurrNode.View {
 									//TODO: Restart new view change mode
@@ -669,8 +669,8 @@ func (actor Actor) start() error{
 
 								if !isDup{
 
-									log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] currActor.ViewChangeMsgLogs", currActor.ViewChangeMsgLogs)
-									log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] viewChangeMsg.hash", viewChangeMsg.hash)
+									//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] currActor.ViewChangeMsgLogs", currActor.ViewChangeMsgLogs)
+									//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] viewChangeMsg.hash", viewChangeMsg.hash)
 
 									currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
 									*currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
@@ -770,7 +770,7 @@ func (actor Actor) start() error{
 
 				case NEWVIEW:
 
-					log.Println("View", currActor.CurrNode.View , "New view msg from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index)
+					//log.Println("View", currActor.CurrNode.View , "New view msg from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index)
 
 					go func(){
 						select {

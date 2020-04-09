@@ -1,6 +1,9 @@
 package main
 
-import "sync"
+import (
+	"log"
+	"sync"
+)
 
 // Mutex for blockchain class
 var logBlockMutex sync.Mutex
@@ -25,3 +28,11 @@ var viewChangingMutex sync.Mutex
 
 //Wait group for actor class
 var wgActor sync.WaitGroup
+
+func debug(){
+	for _, node := range nodes{
+		log.Println("node:", node.index)
+		log.Println("info:", node)
+		log.Println("actor:", node.consensusEngine.BFTProcess)
+	}
+}

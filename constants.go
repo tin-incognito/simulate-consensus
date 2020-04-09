@@ -20,6 +20,11 @@ const (
 	ViewChangeMode = "viewchange_mode"
 )
 
+const (
+	PREPARETIMER = "prepare-timer"
+	COMMITTIMER = "commit-timer"
+)
+
 //Viewchange flow:
 // viewchange -> newview -> normal mode
 

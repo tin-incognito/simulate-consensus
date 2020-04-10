@@ -41,9 +41,9 @@ type Actor struct{
 	msgTimerCh chan MsgTimer
 	stuckCh chan string
 	prepareMsgTimerCh chan bool
+	prepareTimeOutCh chan bool
 	commitMsgTimerCh chan bool
-	//isPrepareAmountMsgTimer bool
-
+	commitTimeOutCh chan bool
 }
 
 func NewActor() *Actor{
@@ -263,98 +263,169 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 	switch msgTimer.Type {
 	case PREPARE:
 
-		handleMsgTimerMutex.Lock()
-
-		//ch := make(chan bool)
-		//bftMsgs := actor.BFTMsgLogs
-		//prePrepareMsgs := actor.prePrepareMsg
-
-		//actor.wg.Wait()
-
 		go func(){
+
 			select {
-			case <- actor.prepareAmountMsgTimer.C:
+			case <- actor.commitMsgTimerCh:
 
-				//currActor := actor.CurrNode.consensusEngine.BFTProcess
+				//log.Println("prepare:", prepareMsg)
 
-				handleTimerMutex.Lock()
+				//prepareMutex.Lock()
 
-				GetMapMutex.RLock()
+				if actor.CurrNode.Mode != NormalMode{
+					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[prepare] Block by normal mode verifier")
 
-				//log.Println(actor.BFTMsgLogs)
+					//switchViewChangeModeMutex.Lock()
+					//currActor.switchToviewChangeMode()
+					//switchViewChangeModeMutex.Unlock()
 
-				GetMapMutex.RUnlock()
+					return
+				}
 
-				//go func(){
-				//	select {
-				//	case <-ch:
-				//		log.Println(actor.BFTMsgLogs)
-				//	}
-				//}()
+				//saveMsgMutex.Lock()
+
+				PutMapMutex.Lock()
+
+				//PutMapMutex.Lock()
+
+				//log.Println("inside map:", actor.BFTMsgLogs, "node:", actor.CurrNode.index)
+
+				//PutMapMutex.Unlock()
+
+				PutMapMutex.Unlock()
+
+				//if !actor.BFTMsgLogs[*commitMsg.prevMsgHash].prepareExpire {
+				//	prePrepareMsg := actor.prePrepareMsg[int(actor.CurrNode.View)]
 				//
-				//ch <- true
-
-
-
-				//prePrepareMsg := prePrepareMsgs[int(actor.CurrNode.View)]
-
-				//log.Println(bftMsgs)
-				//log.Println(prePrepareMsgs)
-
-				//log.Println("actor.BFTMsgLogs:", bftMsgs)
-
-				//for _, msg := range actor.BFTMsgLogs{
-				//	//if msg.prevMsgHash != nil {
-				//	//	if *msg.prevMsgHash == prePrepareMsg.hash{
-				//	//		if msg.Type == PREPARE{
-				//	//			//actor.BFTMsgLogs[prePrepareMsg.hash].Amount++
-				//	//		}
-				//	//	}
-				//	//}
-				//	if msg.prevMsgHash != nil && *msg.prevMsgHash == prePrepareMsg.hash && msg.Type == PREPARE {
-				//		actor.BFTMsgLogs[prePrepareMsg.hash].Amount++
+				//	amount := 0
+				//
+				//	for _, msg := range actor.BFTMsgLogs {
+				//		if msg.prevMsgHash != nil && *msg.prevMsgHash == prePrepareMsg.hash && msg.Type == PREPARE && msg.View == actor.CurrNode.View {
+				//			//actor.BFTMsgLogs[prePrepareMsg.hash].Amount++
+				//			amount++
+				//		}
+				//	}
+				//
+				//	//Need to refactor with timeout for messages
+				//
+				//	if uint64(amount) <= uint64(2*n/3){
+				//
+				//	} else {
+				//		//Move to committing phase
+				//		msg := NormalMsg{
+				//			hash: 	   utils.GenerateHashV1(),
+				//			Type:      COMMIT,
+				//			View:      actor.chainHandler.View(),
+				//			SeqNum:    actor.chainHandler.SeqNumber(),
+				//			SignerID:  actor.CurrNode.index,
+				//			Timestamp: uint64(time.Now().Unix()),
+				//			BlockID:   prePrepareMsg.BlockID,
+				//			block: prePrepareMsg.block,
+				//			prevMsgHash: &prePrepareMsg.hash,
+				//		}
+				//
+				//		for _, member := range actor.Validators{
+				//			go func(node *Node){
+				//				//log.Println("Send to commit channel")
+				//				node.consensusEngine.BFTProcess.CommitMsgCh <- msg
+				//			}(member)
+				//		}
+				//
+				//		//actor.postAmountMsgTimerCh <- true
+				//
+				//		actor.BFTMsgLogs[*commitMsg.prevMsgHash].prepareExpire = true
 				//	}
 				//}
-
-				//if uint64(actor.BFTMsgLogs[prePrepareMsg.hash].Amount) <= uint64(2*n/3) {
-				//
-				//	//switchViewChangeModeMutex.Lock()
-				//	//currActor.switchToviewChangeMode()
-				//	//switchViewChangeModeMutex.Unlock()
-				//
-				//	return
-				//}
-
-				//
-				//if !actor.BFTMsgLogs[prePrepareMsg.hash].prepareExpire{
-				//	//Move to committing phase
-				//	msg := NormalMsg{
-				//		hash: 	   utils.GenerateHashV1(),
-				//		Type:      COMMIT,
-				//		View:      actor.chainHandler.View(),
-				//		SeqNum:    actor.chainHandler.SeqNumber(),
-				//		SignerID:  actor.CurrNode.index,
-				//		Timestamp: uint64(time.Now().Unix()),
-				//		BlockID:   prePrepareMsg.BlockID,
-				//		block: prePrepareMsg.block,
-				//		prevMsgHash: &prePrepareMsg.hash,
-				//	}
-				//
-				//	for _, member := range actor.Validators{
-				//		go func(node *Node){
-				//			log.Println("Send to commit channel")
-				//			node.consensusEngine.BFTProcess.CommitMsgCh <- msg
-				//		}(member)
-				//	}
-				//
-				//	actor.BFTMsgLogs[prePrepareMsg.hash].prepareExpire = true
-				//}
-				//
-				//actor.postAmountMsgTimerCh <- true
-
-				handleTimerMutex.Unlock()
 			}
 		}()
+
+		actor.commitMsgTimerCh <- true
+
+
+		//go func(){
+		//	select {
+		//	case <- actor.prepareAmountMsgTimer.C:
+		//
+		//		//currActor := actor.CurrNode.consensusEngine.BFTProcess
+		//
+		//		handleTimerMutex.Lock()
+		//
+		//		GetMapMutex.RLock()
+		//
+		//		//log.Println(actor.BFTMsgLogs)
+		//
+		//		GetMapMutex.RUnlock()
+		//
+		//		//go func(){
+		//		//	select {
+		//		//	case <-ch:
+		//		//		log.Println(actor.BFTMsgLogs)
+		//		//	}
+		//		//}()
+		//		//
+		//		//ch <- true
+		//
+		//
+		//
+		//		//prePrepareMsg := prePrepareMsgs[int(actor.CurrNode.View)]
+		//
+		//		//log.Println(bftMsgs)
+		//		//log.Println(prePrepareMsgs)
+		//
+		//		//log.Println("actor.BFTMsgLogs:", bftMsgs)
+		//
+		//		//for _, msg := range actor.BFTMsgLogs{
+		//		//	//if msg.prevMsgHash != nil {
+		//		//	//	if *msg.prevMsgHash == prePrepareMsg.hash{
+		//		//	//		if msg.Type == PREPARE{
+		//		//	//			//actor.BFTMsgLogs[prePrepareMsg.hash].Amount++
+		//		//	//		}
+		//		//	//	}
+		//		//	//}
+		//		//	if msg.prevMsgHash != nil && *msg.prevMsgHash == prePrepareMsg.hash && msg.Type == PREPARE {
+		//		//		actor.BFTMsgLogs[prePrepareMsg.hash].Amount++
+		//		//	}
+		//		//}
+		//
+		//		//if uint64(actor.BFTMsgLogs[prePrepareMsg.hash].Amount) <= uint64(2*n/3) {
+		//		//
+		//		//	//switchViewChangeModeMutex.Lock()
+		//		//	//currActor.switchToviewChangeMode()
+		//		//	//switchViewChangeModeMutex.Unlock()
+		//		//
+		//		//	return
+		//		//}
+		//
+		//		//
+		//		//if !actor.BFTMsgLogs[prePrepareMsg.hash].prepareExpire{
+		//		//	//Move to committing phase
+		//		//	msg := NormalMsg{
+		//		//		hash: 	   utils.GenerateHashV1(),
+		//		//		Type:      COMMIT,
+		//		//		View:      actor.chainHandler.View(),
+		//		//		SeqNum:    actor.chainHandler.SeqNumber(),
+		//		//		SignerID:  actor.CurrNode.index,
+		//		//		Timestamp: uint64(time.Now().Unix()),
+		//		//		BlockID:   prePrepareMsg.BlockID,
+		//		//		block: prePrepareMsg.block,
+		//		//		prevMsgHash: &prePrepareMsg.hash,
+		//		//	}
+		//		//
+		//		//	for _, member := range actor.Validators{
+		//		//		go func(node *Node){
+		//		//			log.Println("Send to commit channel")
+		//		//			node.consensusEngine.BFTProcess.CommitMsgCh <- msg
+		//		//		}(member)
+		//		//	}
+		//		//
+		//		//	actor.BFTMsgLogs[prePrepareMsg.hash].prepareExpire = true
+		//		//}
+		//		//
+		//		//actor.postAmountMsgTimerCh <- true
+		//
+		//		handleTimerMutex.Unlock()
+		//	}
+		//}()
 
 		//prepareMutex.Unlock()
 

@@ -40,6 +40,8 @@ type Actor struct{
 	phaseStatus string
 	msgTimerCh chan MsgTimer
 	stuckCh chan string
+	prepareMsgTimerCh chan bool
+	commitMsgTimerCh chan bool
 	//isPrepareAmountMsgTimer bool
 
 }
@@ -68,6 +70,8 @@ func NewActor() *Actor{
 		postAmountMsgTimerCh: make (chan bool),
 		prePrepareMsg: make (map[int]*NormalMsg),
 		stuckCh: make (chan string),
+		prepareMsgTimerCh: make (chan bool),
+		commitMsgTimerCh: make (chan bool),
 	}
 
 	return res

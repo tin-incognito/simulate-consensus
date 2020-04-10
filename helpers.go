@@ -34,6 +34,8 @@ var (
 	prepareTimerMutex sync.RWMutex
 	commitTimerMutex sync.RWMutex
 	tempMutex sync.Mutex
+	PrepareMapMutex sync.RWMutex
+	CommitMapMutex sync.RWMutex
 )
 
 //Wait group for actor class

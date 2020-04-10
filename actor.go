@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/tin-incognito/simulate-consensus/common"
 	"github.com/tin-incognito/simulate-consensus/utils"
-	"log"
 	"sync"
 	"time"
 )
@@ -41,6 +40,8 @@ type Actor struct{
 	phaseStatus string
 	msgTimerCh chan MsgTimer
 	stuckCh chan string
+	//isPrepareAmountMsgTimer bool
+
 }
 
 func NewActor() *Actor{
@@ -242,13 +243,29 @@ func (actor *Actor) View() uint64{
 	return actor.CurrNode.View
 }
 
+////waitForTimeOut ...
+//func (actor *Actor) waitForTimeOut(){
+//	go func(){
+//		select {
+//		case actor:
+//
+//		}
+//	}()
+//}
+
 //handleMsgTimer ...
 func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 
-	log.Println("actor.prepareAmountMsgTimer:", actor.prepareAmountMsgTimer)
-
 	switch msgTimer.Type {
 	case PREPARE:
+
+		handleMsgTimerMutex.Lock()
+
+		//ch := make(chan bool)
+		//bftMsgs := actor.BFTMsgLogs
+		//prePrepareMsgs := actor.prePrepareMsg
+
+		//actor.wg.Wait()
 
 		go func(){
 			select {
@@ -256,12 +273,32 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 
 				//currActor := actor.CurrNode.consensusEngine.BFTProcess
 
-				prepareMutex.Lock()
+				handleTimerMutex.Lock()
 
-				prePrepareMsg := actor.prePrepareMsg[int(actor.CurrNode.View)]
+				GetMapMutex.RLock()
 
-				log.Println(prePrepareMsg)
-				
+				//log.Println(actor.BFTMsgLogs)
+
+				GetMapMutex.RUnlock()
+
+				//go func(){
+				//	select {
+				//	case <-ch:
+				//		log.Println(actor.BFTMsgLogs)
+				//	}
+				//}()
+				//
+				//ch <- true
+
+
+
+				//prePrepareMsg := prePrepareMsgs[int(actor.CurrNode.View)]
+
+				//log.Println(bftMsgs)
+				//log.Println(prePrepareMsgs)
+
+				//log.Println("actor.BFTMsgLogs:", bftMsgs)
+
 				//for _, msg := range actor.BFTMsgLogs{
 				//	//if msg.prevMsgHash != nil {
 				//	//	if *msg.prevMsgHash == prePrepareMsg.hash{
@@ -311,9 +348,11 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 				//
 				//actor.postAmountMsgTimerCh <- true
 
-				prepareMutex.Unlock()
+				handleTimerMutex.Unlock()
 			}
 		}()
+
+		//prepareMutex.Unlock()
 
 	case COMMIT:
 

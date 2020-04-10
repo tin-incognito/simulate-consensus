@@ -200,10 +200,6 @@ func (actor Actor) start() error{
 				actor.prePrepareMsg[int(actor.CurrNode.View)] = new(NormalMsg)
 				*actor.prePrepareMsg[int(actor.CurrNode.View)] = prePrepareMsg
 
-				log.Println("actor.CurrNode.index:", actor.CurrNode.index)
-				log.Println("int(actor.CurrNode.View):", int(actor.CurrNode.View))
-				log.Println("*actor.prePrepareMsg[int(actor.CurrNode.View)]:", *actor.prePrepareMsg[int(actor.CurrNode.View)])
-
 				saveMsgMutex.Unlock()
 
 				//Reset idle time out
@@ -286,25 +282,25 @@ func (actor Actor) start() error{
 
 				timerMutex.Lock()
 				if actor.prepareAmountMsgTimer == nil{
-					actor.prepareAmountMsgTimer = time.NewTimer(time.Millisecond * 200) // Race condition
-
-					//currActor.prepareAmountMsgTimer.Reset(time.Millisecond * 200)
+					actor.prepareAmountMsgTimer = time.NewTimer(time.Millisecond * 100) // Race condition
 
 					msgTimer := MsgTimer{ Type:PREPARE }
 					go func (){
-						//currActor.stuckCh <- "Test"
 						actor.msgTimerCh <- msgTimer
 					}()
+
 				}
 				timerMutex.Unlock()
 
-				//currActor.wg.Add(1)
+				//actor.wg.Add(1)
 				go func(){
 
 					select {
 					case <- actor.timeOutCh:
 
 						//log.Println("prepare:", prepareMsg)
+
+						//prepareMutex.Lock()
 
 						if actor.CurrNode.Mode != NormalMode{
 							//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[prepare] Block by normal mode verifier")
@@ -315,6 +311,10 @@ func (actor Actor) start() error{
 
 							return
 						}
+
+						//saveMsgMutex.Lock()
+
+						PutMapMutex.Lock()
 
 						if prepareMsg.prevMsgHash == nil {
 
@@ -327,7 +327,7 @@ func (actor Actor) start() error{
 							return
 						}
 
-						saveMsgMutex.Lock()
+						//prepareMutex.Lock()
 
 						if actor.BFTMsgLogs[*prepareMsg.prevMsgHash] == nil {
 
@@ -344,13 +344,57 @@ func (actor Actor) start() error{
 						if actor.BFTMsgLogs[prepareMsg.hash] == nil {
 							actor.BFTMsgLogs[prepareMsg.hash] = new(NormalMsg)
 							*actor.BFTMsgLogs[prepareMsg.hash] = prepareMsg
-						} else {
-							actor.BFTMsgLogs[prepareMsg.hash].Amount++
 						}
+						actor.BFTMsgLogs[prepareMsg.hash].Amount++
 
-						//currActor.wg.Done()
+						PutMapMutex.Unlock()
 
-						saveMsgMutex.Unlock()
+						//if !actor.BFTMsgLogs[prePrepareMsg.hash].prepareExpire {
+
+						//if !actor.BFTMsgLogs[*prepareMsg.prevMsgHash].prepareExpire {
+						//	prePrepareMsg := actor.prePrepareMsg[int(actor.CurrNode.View)]
+						//
+						//	amount := 0
+						//
+						//	for _, msg := range actor.BFTMsgLogs {
+						//		if msg.prevMsgHash != nil && *msg.prevMsgHash == prePrepareMsg.hash && msg.Type == PREPARE && msg.View == actor.CurrNode.View {
+						//			//actor.BFTMsgLogs[prePrepareMsg.hash].Amount++
+						//			amount++
+						//		}
+						//	}
+						//
+						//	//Need to refactor with timeout for messages
+						//
+						//	if uint64(amount) <= uint64(2*n/3){
+						//
+						//	} else {
+						//		//Move to committing phase
+						//		msg := NormalMsg{
+						//			hash: 	   utils.GenerateHashV1(),
+						//			Type:      COMMIT,
+						//			View:      actor.chainHandler.View(),
+						//			SeqNum:    actor.chainHandler.SeqNumber(),
+						//			SignerID:  actor.CurrNode.index,
+						//			Timestamp: uint64(time.Now().Unix()),
+						//			BlockID:   prePrepareMsg.BlockID,
+						//			block: prePrepareMsg.block,
+						//			prevMsgHash: &prePrepareMsg.hash,
+						//		}
+						//
+						//		for _, member := range actor.Validators{
+						//			go func(node *Node){
+						//				log.Println("Send to commit channel")
+						//				node.consensusEngine.BFTProcess.CommitMsgCh <- msg
+						//			}(member)
+						//		}
+						//
+						//		//actor.postAmountMsgTimerCh <- true
+						//
+						//		actor.BFTMsgLogs[*prepareMsg.prevMsgHash].prepareExpire = true
+						//	}
+						//}
+
+						//saveMsgMutex.Unlock()
 					}
 				}()
 
@@ -765,13 +809,10 @@ func (actor Actor) start() error{
 			////	}
 
 			case msgTimer := <- actor.msgTimerCh:
-				log.Println("msgTimer:", msgTimer)
 				actor.handleMsgTimer(msgTimer)
 
 			case msgTimer := <- actor.postMsgTimerCh:
-
 				switch msgTimer.Type {
-
 				case PREPARE:
 
 					timerMutex.Lock()

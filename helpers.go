@@ -26,6 +26,13 @@ var switchNormalModeMutex sync.Mutex
 var timeOutChMutex sync.Mutex
 var viewChangingMutex sync.Mutex
 
+var (
+	handleMsgTimerMutex sync.Mutex
+	handleTimerMutex sync.Mutex
+	PutMapMutex sync.RWMutex
+	GetMapMutex sync.RWMutex
+)
+
 //Wait group for actor class
 var wgActor sync.WaitGroup
 

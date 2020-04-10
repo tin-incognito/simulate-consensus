@@ -28,7 +28,7 @@ func (actor Actor) start() error{
 
 			case _ = <- actor.BroadcastMsgCh:
 
-				log.Println("Broadcast msg")
+				//log.Println("Broadcast msg")
 
 				// This is Pre prepare phase
 				//currActor := actor.CurrNode.consensusEngine.BFTProcess
@@ -129,6 +129,8 @@ func (actor Actor) start() error{
 				}
 
 			case prePrepareMsg := <- actor.PrePrepareMsgCh:
+
+				//log.Println("pre prepare msg:", prePrepareMsg)
 
 				if actor.CurrNode.Mode != NormalMode {
 					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[pre prepare] Block by normal mode verifier")
@@ -232,6 +234,7 @@ func (actor Actor) start() error{
 
 							for _, member := range actor.Validators{
 								go func(node *Node){
+									log.Println("Send message from:", node.index, "to:", member.index)
 									node.consensusEngine.BFTProcess.PrepareMsgCh <- msg
 								}(member)
 							}
@@ -255,6 +258,8 @@ func (actor Actor) start() error{
 				actor.wg.Wait()
 
 			case prepareMsg := <- actor.PrepareMsgCh:
+
+				log.Println("prepareMsg:", prepareMsg)
 
 				// This is still preparing phase
 
@@ -333,6 +338,7 @@ func (actor Actor) start() error{
 				msgTimerMutex.Lock()
 				if actor.commitAmountMsgTimer == nil{
 					actor.commitAmountMsgTimer = time.NewTimer(time.Millisecond * 200)
+
 					msgTimer := MsgTimer{ Type:COMMIT }
 					go func (){
 						actor.msgTimerCh <- msgTimer
@@ -355,7 +361,8 @@ func (actor Actor) start() error{
 							return
 						}
 
-						CommitMapMutex.Lock()
+						//CommitMapMutex.Lock()
+						PrepareMapMutex.Lock()
 
 						if commitMsg.prevMsgHash == nil {
 
@@ -368,10 +375,6 @@ func (actor Actor) start() error{
 							return
 						}
 
-						//prepareMutex.Lock()
-
-						//commitTimerMutex.RLock()
-
 						if actor.BFTMsgLogs[*commitMsg.prevMsgHash] == nil {
 
 							//log.Println("[prepare] currActor.BFTMsgLogs[*prepareMsg.prevMsgHash]")
@@ -383,7 +386,10 @@ func (actor Actor) start() error{
 							return
 						}
 
+						//log.Println(actor.BFTMsgLogs[commitMsg.hash])
+
 						//Save it to somewhere else for every node (actor of consensus engine)
+
 						if actor.BFTMsgLogs[commitMsg.hash] == nil {
 							actor.BFTMsgLogs[commitMsg.hash] = new(NormalMsg)
 							*actor.BFTMsgLogs[commitMsg.hash] = commitMsg
@@ -392,7 +398,8 @@ func (actor Actor) start() error{
 
 						actor.wg.Done()
 
-						CommitMapMutex.Unlock()
+						PrepareMapMutex.Unlock()
+						//CommitMapMutex.Unlock()
 					}
 				}()
 
@@ -635,23 +642,24 @@ func (actor Actor) start() error{
 			case msgTimer := <- actor.msgTimerCh:
 				actor.handleMsgTimer(msgTimer)
 
-			case msgTimer := <- actor.postMsgTimerCh:
-				switch msgTimer.Type {
-				case PREPARE:
-
-					timerMutex.Lock()
-					actor.prepareAmountMsgTimer.Stop()
-					actor.prepareAmountMsgTimer = nil
-					timerMutex.Unlock()
-
-				case COMMIT:
-
-					timerMutex.Lock()
-					actor.commitAmountMsgTimer.Stop()
-					actor.commitAmountMsgTimer = nil
-					timerMutex.Unlock()
-
-				}
+			//case msgTimer := <- actor.postMsgTimerCh:
+			//
+			//	switch msgTimer.Type {
+			//	case PREPARE:
+			//
+			//		timerMutex.Lock()
+			//		actor.prepareAmountMsgTimer.Stop()
+			//		actor.prepareAmountMsgTimer = nil
+			//		timerMutex.Unlock()
+			//
+			//	case COMMIT:
+			//
+			//		timerMutex.Lock()
+			//		actor.commitAmountMsgTimer.Stop()
+			//		actor.commitAmountMsgTimer = nil
+			//		timerMutex.Unlock()
+			//
+			//	}
 
 			}
 

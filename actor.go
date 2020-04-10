@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/tin-incognito/simulate-consensus/common"
 	"github.com/tin-incognito/simulate-consensus/utils"
-	"log"
 	"sync"
 	"time"
 )
@@ -49,6 +48,7 @@ type Actor struct{
 func NewActor() *Actor{
 
 	res := &Actor{
+		postMsgTimerCh: make (chan MsgTimer),
 		PrePrepareMsgCh:     make (chan NormalMsg, 100),
 		PrepareMsgCh:        make (chan NormalMsg, 100),
 		CommitMsgCh:         make (chan NormalMsg, 100),
@@ -267,7 +267,7 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 			select {
 			case <- actor.prepareAmountMsgTimer.C:
 
-				//prepareMutex.Lock()
+				PrepareMapMutex.Lock()
 
 				if actor.CurrNode.Mode != NormalMode{
 					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[prepare] Block by normal mode verifier")
@@ -279,13 +279,11 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 					return
 				}
 
-				//saveMsgMutex.Lock()
-
-				//PutMapMutex.Lock()
-
-				log.Println(actor.BFTMsgLogs)
+				//log.Println(actor.BFTMsgLogs)
 
 				prePrepareMsg := actor.prePrepareMsg[int(actor.CurrNode.View)]
+
+				//log.Println(prePrepareMsg)
 
 				if !actor.BFTMsgLogs[prePrepareMsg.hash].prepareExpire{
 
@@ -311,31 +309,29 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 
 					//Move to committing phase
 
-					//msg := NormalMsg{
-					//	hash: 	   utils.GenerateHashV1(),
-					//	Type:      COMMIT,
-					//	View:      actor.chainHandler.View(),
-					//	SeqNum:    actor.chainHandler.SeqNumber(),
-					//	SignerID:  actor.CurrNode.index,
-					//	Timestamp: uint64(time.Now().Unix()),
-					//	BlockID:   prePrepareMsg.BlockID,
-					//	block: prePrepareMsg.block,
-					//	prevMsgHash: &prePrepareMsg.hash,
-					//}
+					msg := NormalMsg{
+						hash: 	   utils.GenerateHashV1(),
+						Type:      COMMIT,
+						View:      actor.chainHandler.View(),
+						SeqNum:    actor.chainHandler.SeqNumber(),
+						SignerID:  actor.CurrNode.index,
+						Timestamp: uint64(time.Now().Unix()),
+						BlockID:   prePrepareMsg.BlockID,
+						block: prePrepareMsg.block,
+						prevMsgHash: &prePrepareMsg.hash,
+					}
 
 					for _, member := range actor.Validators{
 						go func(node *Node){
-							//node.consensusEngine.BFTProcess.CommitMsgCh <- msg
+							node.consensusEngine.BFTProcess.CommitMsgCh <- msg
 						}(member)
 					}
 
 					//actor.postMsgTimerCh <- msgTimer
-
-					actor.BFTMsgLogs[prePrepareMsg.hash].prepareExpire = true
-
+					actor.prepareAmountMsgTimer = nil
 				}
 
-				//PutMapMutex.Unlock()
+				PrepareMapMutex.Unlock()
 			}
 		}()
 
@@ -346,10 +342,7 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 			select {
 			case <- actor.commitAmountMsgTimer.C:
 
-				//prepareMutex.Lock()
-
 				if actor.CurrNode.Mode != NormalMode{
-					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[prepare] Block by normal mode verifier")
 
 					//switchViewChangeModeMutex.Lock()
 					//currActor.switchToviewChangeMode()
@@ -358,9 +351,13 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 					return
 				}
 
+				PrepareMapMutex.Lock()
+
 				prePrepareMsg := actor.prePrepareMsg[int(actor.CurrNode.View)]
 
 				if !actor.BFTMsgLogs[prePrepareMsg.hash].commitExpire {
+
+					actor.BFTMsgLogs[prePrepareMsg.hash].commitExpire = true
 
 					prePrepareMsg := actor.prePrepareMsg[int(actor.CurrNode.View)]
 
@@ -380,7 +377,6 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 						// Switch to view change mode
 						return
 					}
-					actor.BFTMsgLogs[prePrepareMsg.hash].commitExpire = true
 
 					//Update current chain
 					check, err := actor.chainHandler.ValidateBlock(prePrepareMsg.block)
@@ -408,14 +404,12 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 
 					if actor.CurrNode.IsProposer { //Race condition
 						actor.chainHandler.print()
+
+						//TEST SIMULATE NORMAL MODE
+						time.Sleep(time.Millisecond * 100)
+						actor.BroadcastMsgCh <- true
+						///
 					}
-
-					actor.postMsgTimerCh <- msgTimer
-
-					//TEST SIMULATE NORMAL MODE
-					time.Sleep(time.Millisecond * 100)
-					actor.BroadcastMsgCh <- true
-					///
 
 					////After normal mode
 					//updateModeMutex.Lock()
@@ -427,7 +421,12 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 					//	return
 					//}
 					//updateModeMutex.Unlock()
+
+					actor.commitAmountMsgTimer = nil
+
 				}
+
+				PrepareMapMutex.Unlock()
 			}
 		}()
 

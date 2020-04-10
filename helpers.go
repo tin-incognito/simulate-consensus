@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"sync"
 )
 
@@ -27,24 +26,9 @@ var timeOutChMutex sync.Mutex
 var viewChangingMutex sync.Mutex
 
 var (
-	handleMsgTimerMutex sync.Mutex
-	handleTimerMutex sync.Mutex
-	PutMapMutex sync.RWMutex
-	GetMapMutex sync.RWMutex
-	prepareTimerMutex sync.RWMutex
-	commitTimerMutex sync.RWMutex
-	tempMutex sync.Mutex
 	PrepareMapMutex sync.RWMutex
 	CommitMapMutex sync.RWMutex
 )
 
 //Wait group for actor class
 var wgActor sync.WaitGroup
-
-func debug(){
-	for _, node := range nodes{
-		log.Println("node:", node.index)
-		log.Println("info:", node)
-		log.Println("actor:", node.consensusEngine.BFTProcess)
-	}
-}

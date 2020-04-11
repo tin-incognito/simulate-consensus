@@ -34,6 +34,7 @@ type Actor struct{
 	viewChangeTimer *time.Timer
 	newBlock *Block
 	prePrepareMsg map[int]*NormalMsg
+	viewChangeMsg map[int]*ViewMsg
 	viewChangeExpire bool
 	viewChangeAmount map[int]int
 	phaseStatus string
@@ -50,6 +51,7 @@ type Actor struct{
 func NewActor() *Actor{
 
 	res := &Actor{
+		viewChangeMsg: make (map[int]*ViewMsg),
 		postMsgTimerCh: make (chan MsgTimer),
 		PrePrepareMsgCh:     make (chan NormalMsg, 100),
 		PrepareMsgCh:        make (chan NormalMsg, 100),
@@ -73,6 +75,7 @@ func NewActor() *Actor{
 		stuckCh: make (chan string),
 		prepareMsgTimerCh: make (chan bool),
 		commitMsgTimerCh: make (chan bool),
+		viewChangeMsgTimerCh: make (chan bool),
 	}
 
 	return res
@@ -235,16 +238,6 @@ func (engine *Engine) start() error{
 func (actor *Actor) View() uint64{
 	return actor.CurrNode.View
 }
-
-////waitForTimeOut ...
-//func (actor *Actor) waitForTimeOut(){
-//	go func(){
-//		select {
-//		case actor:
-//
-//		}
-//	}()
-//}
 
 //handleMsgTimer ...
 func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
@@ -417,6 +410,58 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 		}()
 
 	case VIEWCHANGE:
+
+		go func() {
+			select {
+			case <-actor.viewChangeTimer.C:
+
+				//How to get viewchange msg with view now?
+
+				actor.viewChangeTimer = nil
+
+				viewChange := actor.prePrepareMsg[int(actor.CurrNode.View)]
+
+				if uint64(actor.viewChangeAmount[int(actor.View())]) <= uint64(2*n/3) {
+
+					return
+				}
+
+				if !actor.viewChangeExpire {
+					actor.viewChangeExpire = true
+
+					if actor.isPrimaryNode(int(actor.View())) {
+						msg := ViewMsg{
+							hash:        utils.GenerateHashV1(),
+							Type:        NEWVIEW,
+							View:        viewChangeMsg.View,
+							SignerID:    actor.CurrNode.index,
+							Timestamp:   uint64(time.Now().Unix()),
+							prevMsgHash: viewChangeMsg.prevMsgHash, //viewchange msg hash
+						}
+
+						for _, msg := range actor.ViewChangeMsgLogs {
+							if msg.View == actor.View() && msg.Type == VIEWCHANGE {
+								msg.hashSignedMsgs = append(msg.hashSignedMsgs, msg.hash)
+							}
+						}
+
+						//Save view change msg to somewhere
+						if actor.ViewChangeMsgLogs[msg.hash] == nil {
+							actor.ViewChangeMsgLogs[msg.hash] = new(ViewMsg)
+							*actor.ViewChangeMsgLogs[msg.hash] = msg
+						}
+
+						//Send messages to other nodes
+						for _, element := range actor.Validators {
+							//Define message for sending back to primary node
+							go func(node *Node) {
+								node.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
+							}(element)
+						}
+					}
+				}
+			}
+		}()
 
 	}
 }

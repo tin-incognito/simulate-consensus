@@ -433,11 +433,14 @@ func (actor Actor) start() error{
 
 			case viewChangeMsg := <- actor.ViewChangeMsgCh:
 
-				if actor.CurrNode.Mode != ViewChangeMode{
-					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[viewchange] Block by viewchange mode verifier")
-					//currActor.switchToNormalMode() //Race condition
-					continue
-				}
+				modeMutex.Lock()
+
+				//if actor.CurrNode.Mode != ViewChangeMode{
+				//	//currActor.switchToNormalMode() //Race condition
+				//	continue
+				//}
+
+				modeMutex.Unlock()
 
 				switch viewChangeMsg.Type {
 
@@ -445,10 +448,49 @@ func (actor Actor) start() error{
 
 					log.Println("[view change] viewChangeMsg:", viewChangeMsg)
 
-					//Timeout generate new block
-					//currActor.wg.Add(1)
+
+					go func() {
+						select {
+						case <- actor.viewChangeMsgTimerCh:
+
+							if viewChangeMsg.View < actor.CurrNode.View {
+								//switchViewChangeModeMutex.Lock()
+								//currActor.switchToviewChangeMode()
+								//switchViewChangeModeMutex.Unlock()
+								return
+							} else{
+								if viewChangeMsg.View <= actor.CurrNode.View{
+									//switchViewChangeModeMutex.Lock()
+									//currActor.switchToviewChangeMode()
+									//switchViewChangeModeMutex.Unlock()
+									return
+									}
+							}
+
+							//				//Save view change msg to somewhere
+							//				if currActor.ViewChangeMsgLogs[viewChangeMsg.hash] == nil {
+							//					isDup := false
+							//					for _, element := range currActor.ViewChangeMsgLogs{
+							//						if element.Type == VIEWCHANGE && element.SignerID == viewChangeMsg.SignerID && element.View == viewChangeMsg.View{
+							//							isDup = true
+							//							break
+							//						}
+							//					}
+							//
+							//					if !isDup{
+							//
+							//						//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] currActor.ViewChangeMsgLogs", currActor.ViewChangeMsgLogs)
+							//						//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] viewChangeMsg.hash", viewChangeMsg.hash)
+							//
+							//						currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
+							//						*currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
+							//					}
+							//				}
+						}
+					}()
 
 				case NEWVIEW:
+
 
 				}
 			//		go func(){
@@ -462,49 +504,6 @@ func (actor Actor) start() error{
 			//
 			//					//log.Println("View", currActor.CurrNode.View ,"View change msg from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index)
 			//
-			//					if viewChangeMsg.View < currActor.CurrNode.View {
-			//						//TODO: Restart new view change mode
-			//						// Send faulty node ask to become primary node msg to other nodes
-			//						//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] (already in viewchange mode) viewChangeMsg.View <= currActor.CurrNode.View")
-			//						switchViewChangeModeMutex.Lock()
-			//						currActor.switchToviewChangeMode()
-			//						switchViewChangeModeMutex.Unlock()
-			//						return
-			//					}
-			//				} else {
-			//					if viewChangeMsg.View <= currActor.CurrNode.View{
-			//						//TODO: Restart new view change mode
-			//						// Send faulty node ask to become primary node msg to other nodes
-			//						//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] viewChangeMsg.View <= currActor.CurrNode.View")
-			//						switchViewChangeModeMutex.Lock()
-			//						currActor.switchToviewChangeMode()
-			//						switchViewChangeModeMutex.Unlock()
-			//						return
-			//						//currActor.wg.Wait()
-			//					}
-			//				}
-			//
-			//				viewChangeMutex.Lock()
-			//
-			//				//Save view change msg to somewhere
-			//				if currActor.ViewChangeMsgLogs[viewChangeMsg.hash] == nil {
-			//					isDup := false
-			//					for _, element := range currActor.ViewChangeMsgLogs{
-			//						if element.Type == VIEWCHANGE && element.SignerID == viewChangeMsg.SignerID && element.View == viewChangeMsg.View{
-			//							isDup = true
-			//							break
-			//						}
-			//					}
-			//
-			//					if !isDup{
-			//
-			//						//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] currActor.ViewChangeMsgLogs", currActor.ViewChangeMsgLogs)
-			//						//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] viewChangeMsg.hash", viewChangeMsg.hash)
-			//
-			//						currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
-			//						*currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
-			//					}
-			//				}
 			//
 			//				for _, msg := range currActor.ViewChangeMsgLogs{
 			//					if msg.View == currActor.View() && msg.Type == VIEWCHANGE{

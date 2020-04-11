@@ -43,6 +43,7 @@ type Actor struct{
 	prepareTimeOutCh chan bool
 	commitMsgTimerCh chan bool
 	commitTimeOutCh chan bool
+	viewChangeMsgTimerCh chan bool
 	modeMutex sync.Mutex
 }
 
@@ -98,30 +99,18 @@ func (actor *Actor) updateAllNormalMode(){
 //switchToNormalMode ...
 func (actor *Actor) switchToNormalMode(){
 
-	//log.Println( "View:", actor.CurrNode.View, "Node", actor.CurrNode.index, "switch to normal mode")
+	//switchMutex.Lock()
 
-	currActor := actor.CurrNode.consensusEngine.BFTProcess
+	actor.CurrNode.Mode = NormalMode
+	actor.CurrNode.PrimaryNode = actor.Validators[actor.calculatePrimaryNode(int(actor.View()))]
 
-	//defer func(){
-	//	currActor.wg.Done()
-	//}()
-
-	switchMutex.Lock()
-
-	//log.Println("node ", actor.CurrNode.index, "switch back to normal mode")
-
-	currActor.CurrNode.Mode = NormalMode
-	currActor.ProposalNode = currActor.Validators[currActor.calculatePrimaryNode(int(currActor.View()))]
-
-	if currActor.isPrimaryNode(int(currActor.View())){
-		currActor.CurrNode.IsProposer = true //Race condition
+	if actor.isPrimaryNode(int(actor.View())){
+		actor.CurrNode.IsProposer = true //Race condition
 	}
 
-	currActor.ProposalNode = currActor.Validators[currActor.calculatePrimaryNode(int(currActor.View()))]
+	actor.CurrNode.PrimaryNode = actor.Validators[actor.calculatePrimaryNode(int(actor.View()))]
 
-	//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index)
-
-	switchMutex.Unlock()
+	//switchMutex.Unlock()
 }
 
 //switchToViewChangeMode ...
@@ -136,6 +125,8 @@ func (actor *Actor) switchToviewChangeMode(){
 	if actor.CurrNode.IsProposer{
 		actor.CurrNode.IsProposer = false
 	}
+
+	modeMutex.Lock()
 
 	actor.ViewChanging(actor.CurrNode.View + 1)
 
@@ -165,6 +156,8 @@ func (actor *Actor) switchToviewChangeMode(){
 		}(element)
 	}
 
+	modeMutex.Unlock()
+
 	//modeMutex.Unlock()
 }
 
@@ -179,28 +172,31 @@ func (actor *Actor) isPrimaryNode(view int) bool{
 }
 
 func (actor *Actor) updateProposalNode(index int) {
-	currActor := actor.CurrNode.consensusEngine.BFTProcess
-	currActor.ProposalNode = currActor.Validators[index]
+	//currActor := actor.CurrNode.consensusEngine.BFTProcess
+	//actor.ProposalNode = currActor.Validators[index]
+
+	actor.CurrNode.PrimaryNode = actor.Validators[index]
+
 }
 
 //updateNormalMode ...
 func (actor *Actor) updateNormalMode(view uint64) {
-	currActor := actor.CurrNode.consensusEngine.BFTProcess
-	modeMutex.Lock()
-	currActor.CurrNode.Mode = NormalMode
-	modeMutex.Unlock()
+	//modeMutex.Lock()
+	actor.CurrNode.Mode = NormalMode
+	//modeMutex.Unlock()
 }
 
 //ViewChanging ...
 func (actor *Actor) ViewChanging(v uint64) error{
 	//modeMutex.Lock()
-	currActor := actor.CurrNode.consensusEngine.BFTProcess
-	currActor.CurrNode.Mode = ViewChangeMode //Race condition
-	currActor.CurrNode.View = v
+	//currActor := actor.CurrNode.consensusEngine.BFTProcess
+
+	actor.CurrNode.Mode = ViewChangeMode //Race condition
+	actor.CurrNode.View = v
 
 	//err := currActor.chainHandler.IncreaseView()
 
-	err := currActor.chainHandler.setView(v)
+	err := actor.chainHandler.setView(v)
 
 	if err != nil {
 		return err
@@ -210,10 +206,10 @@ func (actor *Actor) ViewChanging(v uint64) error{
 }
 
 func (actor *Actor) initValidators(m map[int]*Node) {
-	currActor := actor.CurrNode.consensusEngine.BFTProcess
+	//currActor := actor.CurrNode.consensusEngine.BFTProcess
 
 	for i, element := range m{
-		currActor.Validators[i] = element
+		actor.Validators[i] = element
 	}
 }
 
@@ -410,11 +406,10 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 					actor.commitAmountMsgTimer = nil
 
 					//After normal mode
-					modeMutex.Lock()
-
+					ModeMapMutex.Lock()
 					actor.CurrNode.updateAfterNormalMode()
 					actor.switchToviewChangeMode()
-					modeMutex.Unlock()
+					ModeMapMutex.Unlock()
 				}
 
 				PrepareMapMutex.Unlock()

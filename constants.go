@@ -25,6 +25,11 @@ const (
 	COMMITTIMER = "commit-timer"
 )
 
+const (
+	Production = "prod"
+	Test = "test"
+)
+
 //Viewchange flow:
 // viewchange -> newview -> normal mode
 

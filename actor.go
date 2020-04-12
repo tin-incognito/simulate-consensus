@@ -259,12 +259,9 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 
 				modeMutex.Lock()
 				if actor.CurrNode.Mode != NormalMode{
-					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[prepare] Block by normal mode verifier")
-
-					//switchViewChangeModeMutex.Lock()
-					//currActor.switchToviewChangeMode()
-					//switchViewChangeModeMutex.Unlock()
-
+					ModeMapMutex.Lock()
+					actor.switchToviewChangeMode()
+					ModeMapMutex.Unlock()
 					return
 				}
 				modeMutex.Unlock()
@@ -330,9 +327,9 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 				modeMutex.Lock()
 				if actor.CurrNode.Mode != NormalMode{
 
-					//switchViewChangeModeMutex.Lock()
-					//currActor.switchToviewChangeMode()
-					//switchViewChangeModeMutex.Unlock()
+					ModeMapMutex.Lock()
+					actor.switchToviewChangeMode()
+					ModeMapMutex.Unlock()
 
 					return
 				}
@@ -352,7 +349,6 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 
 					for _, msg := range actor.BFTMsgLogs {
 						if msg.prevMsgHash != nil && *msg.prevMsgHash == prePrepareMsg.hash && msg.Type == COMMIT && msg.View == actor.CurrNode.View {
-							//actor.BFTMsgLogs[prePrepareMsg.hash].Amount++
 							amount++
 						}
 					}
@@ -360,41 +356,42 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 					//Need to refactor with timeout for messages
 
 					if uint64(amount) <= uint64(2*n/3){
-						//TODO:
-						// Switch to view change mode
+						ModeMapMutex.Lock()
+						actor.switchToviewChangeMode()
+						ModeMapMutex.Unlock()
 						return
 					}
 
 					//Update current chain
 					check, err := actor.chainHandler.ValidateBlock(prePrepareMsg.block)
 					if err != nil || !check {
-						//actor.switchToviewChangeMode()
+						ModeMapMutex.Lock()
+						actor.switchToviewChangeMode()
+						ModeMapMutex.Unlock()
 						return
 					}
 
 					check, err = actor.chainHandler.InsertBlock(prePrepareMsg.block)
 					if err != nil || !check {
-						//switchViewChangeModeMutex.Lock()
-						//actor.switchToviewChangeMode()
-						//switchViewChangeModeMutex.Unlock()
+						ModeMapMutex.Lock()
+						actor.switchToviewChangeMode()
+						ModeMapMutex.Unlock()
 						return
 					}
 
 					//Increase sequence number
 					err = actor.chainHandler.IncreaseSeqNum()
 					if err != nil {
-						//switchViewChangeModeMutex.Lock()
-						//actor.switchToviewChangeMode()
-						//switchViewChangeModeMutex.Unlock()
+						ModeMapMutex.Lock()
+						actor.switchToviewChangeMode()
+						ModeMapMutex.Unlock()
 						return
 					}
 
 					if actor.CurrNode.IsProposer { //Race condition
 
-						//printLock.Lock()
 						log.Println("Proposer:", actor.CurrNode.index)
 						actor.chainHandler.print()
-						//printLock.Unlock()
 
 						if getEnv("ENV", "prod") == "test"{
 							//TEST SIMULATE NORMAL MODE
@@ -426,7 +423,9 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 				modeMutex.Lock()
 
 				if uint64(actor.viewChangeAmount[int(actor.View())]) <= uint64(2*n/3) {
-
+					ModeMapMutex.Lock()
+					actor.switchToviewChangeMode()
+					ModeMapMutex.Unlock()
 					return
 				}
 				if !actor.viewChangeExpire[int(actor.View())] {

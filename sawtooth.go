@@ -1,72 +1,10 @@
 package main
 
 import (
-	"github.com/tin-incognito/simulate-consensus/common"
 	"github.com/tin-incognito/simulate-consensus/utils"
 	"log"
-	"sync"
 	"time"
 )
-
-//Actor
-type Actor struct{
-	PrePrepareMsgCh chan NormalMsg
-	PrepareMsgCh    chan NormalMsg
-	CommitMsgCh chan NormalMsg
-	ViewChangeMsgCh chan ViewMsg
-	BroadcastMsgCh chan bool
-	isStarted      bool
-	StopCh         chan struct{}
-	CurrNode 	   *Node
-	ProposalNode *Node
-	Validators map[int]*Node
-	chainHandler ChainHandler
-	BFTMsgLogs map[string]*NormalMsg
-	ViewChangeMsgLogs map[string]*ViewMsg
-	timeOutCh chan bool
-	errCh chan error
-	wg sync.WaitGroup
-	amountMsgTimer *time.Timer
-	idleTimer *time.Timer
-	blockPublishTimer *time.Timer
-	commitTimer *time.Timer
-	viewChangeTimer *time.Timer
-	newBlock *Block
-	viewChangeExpire bool
-	viewChangeAmount map[int]int
-	testCh chan bool
-}
-
-func NewActor() *Actor{
-
-	res := &Actor{
-		PrePrepareMsgCh:     make (chan NormalMsg, 100),
-		PrepareMsgCh:        make (chan NormalMsg, 100),
-		CommitMsgCh:         make (chan NormalMsg, 100),
-		ViewChangeMsgCh: make (chan ViewMsg, 100),
-		BroadcastMsgCh:      make (chan bool, 100),
-		isStarted:           true,
-		CurrNode:            nil,
-		ProposalNode: nil,
-		Validators: make(map[int]*Node),
-		StopCh: make(chan struct{}, 20),
-		chainHandler: &Chain{},
-		BFTMsgLogs: make(map[string]*NormalMsg),
-		ViewChangeMsgLogs: make(map[string]*ViewMsg),
-		wg:                  sync.WaitGroup{},
-		timeOutCh: make(chan bool, 100),
-		errCh: make(chan error, 100),
-		viewChangeAmount: make(map[int]int),
-		testCh: make(chan bool),
-	}
-
-	return res
-}
-
-//Name return name of actor to user
-func (actor Actor) Name() (string,error){
-	return common.SawToothConsensus, nil
-}
 
 //Start ...
 func (actor Actor) start() error{
@@ -85,88 +23,96 @@ func (actor Actor) start() error{
 				log.Println("err:", err)
 				continue
 
-			case _ = <- actor.testCh:
-				log.Println("Test channel")
-				continue
+			case test := <- actor.stuckCh:
+				log.Println(test)
 
 			case _ = <- actor.BroadcastMsgCh:
 
-				log.Println("Broadcast msg")
+				//log.Println("Broadcast msg")
 
 				// This is Pre prepare phase
-				currActor := actor.CurrNode.consensusEngine.BFTProcess
+				//currActor := actor.CurrNode.consensusEngine.BFTProcess
 
-				if currActor.CurrNode.Mode != NormalMode{
+				modeMutex.Lock()
+
+				if actor.CurrNode.Mode != NormalMode{
 					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[broadcast] Block by normal mode verifier")
 					//currActor.switchToviewChangeMode()
 					continue
 				}
+
+				modeMutex.Unlock()
 
 				//TODO:
 				// Start idle timeout here
 
 
 				timerMutex.Lock()
-				currActor.idleTimer = time.NewTimer(time.Millisecond * 30000)
-				currActor.blockPublishTimer = time.NewTimer(time.Millisecond * 1000)
+				actor.idleTimer = time.NewTimer(time.Millisecond * 30000)
+				actor.blockPublishTimer = time.NewTimer(time.Millisecond * 1000)
 				timerMutex.Unlock()
 
 				//Timeout generate new block
-				currActor.wg.Add(1)
+				actor.wg.Add(1)
 				go func(){
 					defer func() {
-						currActor.blockPublishTimer.Stop()
-						currActor.wg.Done()
+						actor.blockPublishTimer.Stop()
+						actor.wg.Done()
 					}()
 
 					select {
-					case <-currActor.timeOutCh:
-						//var err error
-						block, err := currActor.chainHandler.CreateBlock()
+					case <- actor.timeOutCh:
+
+						block, err := actor.chainHandler.CreateBlock()
 						if err != nil {
 							log.Println(err)
 							//currActor.errCh <- err
 							return
 						}
 
-						currActor.newBlock = new(Block)
-						*currActor.newBlock = *block
+						actor.newBlock = new(Block)
+						*actor.newBlock = *block
 
-					case <-currActor.blockPublishTimer.C:
+					case <- actor.blockPublishTimer.C:
+
 						//time.Sleep(time.Millisecond * 100)
 
-						switchViewChangeModeMutex.Lock()
-						currActor.switchToviewChangeMode()
-						switchViewChangeModeMutex.Unlock()
+						//switchViewChangeModeMutex.Lock()
+						//currActor.switchToviewChangeMode()
+						//switchViewChangeModeMutex.Unlock()
+
 						return
 					}
 				}()
 
-				currActor.timeOutCh <- true
-				currActor.wg.Wait()
+				actor.timeOutCh <- true
+				actor.wg.Wait()
 				///
 
 				msg := NormalMsg{
 					hash: utils.GenerateHashV1(),
 					Type:      PREPREPARE,
-					View:      currActor.chainHandler.View(),
-					SeqNum:    currActor.chainHandler.SeqNumber(),
-					SignerID:  currActor.CurrNode.index,
+					View:      actor.chainHandler.View(),
+					SeqNum:    actor.chainHandler.SeqNumber(),
+					SignerID:  actor.CurrNode.index,
 					Timestamp: uint64(time.Now().Unix()),
-					BlockID:   &currActor.newBlock.Index,
+					BlockID:   &actor.newBlock.Index,
 					prevMsgHash: nil,
 				}
 
-				msg.block = currActor.newBlock
+				msg.block = actor.newBlock
 
 				saveMsgMutex.Lock()
 
-				if currActor.BFTMsgLogs[msg.hash] == nil{
-					currActor.BFTMsgLogs[msg.hash] = new(NormalMsg)
-					*currActor.BFTMsgLogs[msg.hash] = msg
+				if actor.BFTMsgLogs[msg.hash] == nil{
+					actor.BFTMsgLogs[msg.hash] = new(NormalMsg)
+					*actor.BFTMsgLogs[msg.hash] = msg
 				} else {
-					currActor.BFTMsgLogs[msg.hash].Amount++
+					actor.BFTMsgLogs[msg.hash].Amount++
 				}
+
+				actor.prePrepareMsg[int(actor.CurrNode.View)] = new(NormalMsg)
+				*actor.prePrepareMsg[int(actor.CurrNode.View)] = msg
 
 				saveMsgMutex.Unlock()
 
@@ -175,25 +121,25 @@ func (actor Actor) start() error{
 				// Then validators will send block info to other block validators
 				// After
 
-				for _, member := range currActor.Validators{
+				for _, member := range actor.Validators{
 					//TODO: Research for more effective broadcast way
 					// Or may be broadcast by go routine
 
-					go func(node *Node){
-						node.consensusEngine.BFTProcess.PrePrepareMsgCh <- msg
-					}(member)
-
-					//member.consensusEngine.BFTProcess.PrePrepareMsgCh <- msg
-
+					if !member.IsProposer{
+						go func(node *Node){
+							//log.Println("Send from:", actor.CurrNode.index, "to:", node.index)
+							node.consensusEngine.BFTProcess.PrePrepareMsgCh <- msg
+						}(member)
+					}
 				}
 
 			case prePrepareMsg := <- actor.PrePrepareMsgCh:
 
-				currActor := actor.CurrNode.consensusEngine.BFTProcess
+				//log.Println("pre prepare msg:", prePrepareMsg)
 
-				//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "pre prepare msg:", prePrepareMsg)
+				modeMutex.Lock()
 
-				if currActor.CurrNode.Mode != NormalMode {
+				if actor.CurrNode.Mode != NormalMode {
 					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[pre prepare] Block by normal mode verifier")
 
 					//TODO:
@@ -206,40 +152,60 @@ func (actor Actor) start() error{
 					continue
 				}
 
-				if !(prePrepareMsg.SignerID == currActor.ProposalNode.index) {
-					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[pre prepare] !(prePrepareMsg.SignerID == currActor.ProposalNode.index)")
+				modeMutex.Unlock()
 
-					switchViewChangeModeMutex.Lock()
-					currActor.switchToviewChangeMode()
-					switchViewChangeModeMutex.Unlock()
+				if !(prePrepareMsg.SignerID == actor.CurrNode.PrimaryNode.index){
+
+					//switchViewChangeModeMutex.Lock()
+					//currActor.switchToviewChangeMode()
+					//switchViewChangeModeMutex.Unlock()
 
 					continue
 				}
 
-				//Save it to somewhere else for every node (actor of consensus engine)
+				if actor.CurrNode.IsProposer {
 
-				saveMsgMutex.Lock()
+					log.Println("currActor.CurrNode.IsProposer")
 
-				if currActor.BFTMsgLogs[prePrepareMsg.hash] == nil{
-					currActor.BFTMsgLogs[prePrepareMsg.hash] = new(NormalMsg)
-					*currActor.BFTMsgLogs[prePrepareMsg.hash] = prePrepareMsg
-				} else {
-					currActor.BFTMsgLogs[prePrepareMsg.hash].Amount++
+					//switchViewChangeModeMutex.Lock()
+					//currActor.switchToviewChangeMode()
+					//switchViewChangeModeMutex.Unlock()
+
+					return
 				}
 
-				saveMsgMutex.Unlock()
+				PrepareMapMutex.Lock()
+
+				if actor.prePrepareMsg[int(actor.CurrNode.View)] != nil && getEnv("ENV", "prod") == Production{
+					//switchViewChangeModeMutex.Lock()
+					//currActor.switchToviewChangeMode()
+					//switchViewChangeModeMutex.Unlock()
+					continue
+				}
+
+				if actor.BFTMsgLogs[prePrepareMsg.hash] == nil{
+					actor.BFTMsgLogs[prePrepareMsg.hash] = new(NormalMsg)
+					*actor.BFTMsgLogs[prePrepareMsg.hash] = prePrepareMsg
+				} else {
+					actor.BFTMsgLogs[prePrepareMsg.hash].Amount++
+				}
+
+				actor.prePrepareMsg[int(actor.CurrNode.View)] = new(NormalMsg)
+				*actor.prePrepareMsg[int(actor.CurrNode.View)] = prePrepareMsg
+
+				PrepareMapMutex.Unlock()
 
 				//Reset idle time out
 				timerMutex.Lock()
-				if currActor.CurrNode.IsProposer{
-					currActor.idleTimer.Reset(time.Millisecond * 1000)
+				if actor.CurrNode.IsProposer{
+					actor.idleTimer.Reset(time.Millisecond * 1000)
 				}
 
 				// Move to prepare phase
 
 				//TODO:
 				// Start commit timeout here
-				currActor.commitTimer = time.NewTimer(time.Millisecond * 10000)
+				actor.commitTimer = time.NewTimer(time.Millisecond * 10000)
 				timerMutex.Unlock()
 
 				// Generate 1 prepare message for each nodes and
@@ -248,593 +214,379 @@ func (actor Actor) start() error{
 
 				//currActor.prePrepareMutex.Lock()
 
-				currActor.wg.Add(1)
+				actor.wg.Add(1)
 				go func(){
-					defer func() {
-						currActor.commitTimer.Stop()
-						currActor.wg.Done()
-					}()
+					//defer func() {
+					//	actor.commitTimer.Stop()
+					//	actor.wg.Done()
+					//}()
 
 					select {
-					case <-currActor.timeOutCh:
+					case <- actor.timeOutCh:
 
 						// Node (not primary node) send prepare msg to other nodes
 
 						prepareMutex.Lock()
 
-						if !currActor.CurrNode.IsProposer{
+						if !actor.CurrNode.IsProposer{
 							msg := NormalMsg{
 								hash: 	   utils.GenerateHashV1(),
 								Type:      PREPARE,
-								View:      currActor.chainHandler.View(),
-								SeqNum:    currActor.chainHandler.SeqNumber(),
-								SignerID:  currActor.CurrNode.index,
+								View:      actor.chainHandler.View(),
+								SeqNum:    actor.chainHandler.SeqNumber(),
+								SignerID:  actor.CurrNode.index,
 								Timestamp: uint64(time.Now().Unix()),
 								BlockID:   prePrepareMsg.BlockID,
 								block: prePrepareMsg.block,
 								prevMsgHash: &prePrepareMsg.hash,
 							}
 
-							for _, member := range currActor.Validators{
+							//log.Println(msg)
+
+							for _, member := range actor.Validators{
+
 								go func(node *Node){
+									//log.Println("Send message from:", actor.CurrNode, "to:", node.index)
 									node.consensusEngine.BFTProcess.PrepareMsgCh <- msg
 								}(member)
 							}
 						}
 
+						actor.commitTimer.Stop()
+						actor.wg.Done()
+
 						prepareMutex.Unlock()
 
 						return
 
-					case <-currActor.commitTimer.C:
+					case <-actor.commitTimer.C:
 
-						switchViewChangeModeMutex.Lock()
-						currActor.switchToviewChangeMode()
-						switchViewChangeModeMutex.Unlock()
+						//switchViewChangeModeMutex.Lock()
+						//currActor.switchToviewChangeMode()
+						//switchViewChangeModeMutex.Unlock()
+
+						actor.commitTimer.Stop()
+						actor.wg.Done()
 
 						return
 					}
 				}()
 
-				currActor.timeOutCh <- true
-				currActor.wg.Wait()
-
-				//currActor.prePrepareMutex.Unlock()
+				actor.timeOutCh <- true
+				actor.wg.Wait()
 
 			case prepareMsg := <- actor.PrepareMsgCh:
 
+				//log.Println("prepareMsg:", prepareMsg)
+
 				// This is still preparing phase
 
-				currActor := actor.CurrNode.consensusEngine.BFTProcess
+				modeMutex.Lock()
 
-				//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "prepare msg:", prepareMsg)
-
-				timerMutex.Lock()
-				currActor.amountMsgTimer = time.NewTimer(time.Millisecond * 100) // Race condition
-				timerMutex.Unlock()
-
-				if currActor.CurrNode.Mode != NormalMode{
+				if actor.CurrNode.Mode != NormalMode{
 					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[prepare] Block by normal mode verifier")
 
 					//switchViewChangeModeMutex.Lock()
 					//currActor.switchToviewChangeMode()
 					//switchViewChangeModeMutex.Unlock()
 
-					continue
+					return
 				}
 
-				if prepareMsg.prevMsgHash == nil {
+				modeMutex.Unlock()
 
-					//log.Println("[prepare] prepareMsg.prevMsgHash")
+				timerMutex.Lock()
+				if actor.prepareAmountMsgTimer == nil{
+					actor.prepareAmountMsgTimer = time.NewTimer(time.Millisecond * 100) // Race condition
 
-					switchViewChangeModeMutex.Lock()
-					currActor.switchToviewChangeMode()
-					switchViewChangeModeMutex.Unlock()
-
-					continue
-				}
-
-				if currActor.BFTMsgLogs[*prepareMsg.prevMsgHash] == nil {
-
-					//log.Println("[prepare] currActor.BFTMsgLogs[*prepareMsg.prevMsgHash]")
-
-					switchViewChangeModeMutex.Lock()
-					currActor.switchToviewChangeMode()
-					switchViewChangeModeMutex.Unlock()
-
-					continue
-				}
-
-				//Save it to somewhere else for every node (actor of consensus engine)
-				saveMsgMutex.Lock()
-
-				if currActor.BFTMsgLogs[prepareMsg.hash] == nil {
-					currActor.BFTMsgLogs[prepareMsg.hash] = new(NormalMsg) // Race condition
-					*currActor.BFTMsgLogs[prepareMsg.hash] = prepareMsg // Race condition
-				} else {
-					currActor.BFTMsgLogs[prepareMsg.hash].Amount++
-				}
-
-				saveMsgMutex.Unlock()
-
-				//TODO: Checking for > 2n/3
-
-				//TODO:
-				// Set timeout here
-
-				// Wait for end of time
-				// If timeout check for 2n > 3
-
-				//currActor.wg.Add(1)
-				go func(){
-
-					defer func() {
-						currActor.amountMsgTimer.Stop() //Race condition
-						//currActor.wg.Done()
+					msgTimer := MsgTimer{ Type:PREPARE }
+					go func (){
+						actor.msgTimerCh <- msgTimer
 					}()
 
+				}
+				timerMutex.Unlock()
+
+				actor.wg.Add(1)
+				go func(){
+
 					select {
-					case <-currActor.amountMsgTimer.C:
+					case <- actor.prepareMsgTimerCh:
 
-						// Node (not primary node) send prepare msg to other nodes
-						//TODO: Optimize by once a node has 2n/3 switch to commit phase
+						PrepareMapMutex.Lock()
 
-						prepareMutex.Lock()
+						if prepareMsg.prevMsgHash == nil {
 
-						for _, msg := range currActor.BFTMsgLogs{
-							if msg.prevMsgHash != nil && *msg.prevMsgHash == *prepareMsg.prevMsgHash && msg.Type == PREPARE{ //Race condition
-								currActor.BFTMsgLogs[*prepareMsg.prevMsgHash].Amount++
-							}
-						}
+							//log.Println("[prepare] prepareMsg.prevMsgHash")
 
-						prepareMutex.Unlock()
-
-						prepareMutex.Lock()
-
-						//log.Println("amount:", currActor.BFTMsgLogs[*prepareMsg.prevMsgHash].Amount)
-
-						if uint64(currActor.BFTMsgLogs[*prepareMsg.prevMsgHash].Amount) <= uint64(2*n/3){
-							//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[prepare] Amount of prepare msg is <= 2n/3")
-
-							switchViewChangeModeMutex.Lock()
-							currActor.switchToviewChangeMode()
-							switchViewChangeModeMutex.Unlock()
+							//switchViewChangeModeMutex.Lock()
+							//currActor.switchToviewChangeMode()
+							//switchViewChangeModeMutex.Unlock()
 
 							return
 						}
 
-						if !currActor.BFTMsgLogs[*prepareMsg.prevMsgHash].prepareExpire{
-							//Move to committing phase
-							msg := NormalMsg{
-								hash: 	   utils.GenerateHashV1(),
-								Type:      COMMIT,
-								View:      currActor.chainHandler.View(),
-								SeqNum:    currActor.chainHandler.SeqNumber(),
-								SignerID:  currActor.CurrNode.index,
-								Timestamp: uint64(time.Now().Unix()),
-								BlockID:   prepareMsg.BlockID,
-								block: prepareMsg.block,
-								prevMsgHash: prepareMsg.prevMsgHash,
-							}
+						if actor.BFTMsgLogs[*prepareMsg.prevMsgHash] == nil {
 
-							//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[prepare] mode:", currActor.CurrNode.Mode)
+							//switchViewChangeModeMutex.Lock()
+							//currActor.switchToviewChangeMode()
+							//switchViewChangeModeMutex.Unlock()
 
-							for _, member := range currActor.Validators{
-								go func(node *Node){
-									node.consensusEngine.BFTProcess.CommitMsgCh <- msg
-								}(member)
-							}
-
-							currActor.BFTMsgLogs[*prepareMsg.prevMsgHash].prepareExpire = true //Race condition
+							return
 						}
 
-						prepareMutex.Unlock()
+						//Save it to somewhere else for every node (actor of consensus engine)
+						if actor.BFTMsgLogs[prepareMsg.hash] == nil {
+							actor.BFTMsgLogs[prepareMsg.hash] = new(NormalMsg)
+							*actor.BFTMsgLogs[prepareMsg.hash] = prepareMsg
+						}
+						actor.BFTMsgLogs[prepareMsg.hash].Amount++
+
+						actor.wg.Done()
+
+						PrepareMapMutex.Unlock()
 					}
 				}()
 
-				//currActor.wg.Wait()
+				actor.prepareMsgTimerCh <- true
+				actor.wg.Wait()
 
 			case commitMsg := <- actor.CommitMsgCh:
 
 				//This is still committing phase
 
-				currActor := actor.CurrNode.consensusEngine.BFTProcess
+				//log.Println(commitMsg)
 
-				//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "commitMsg:", commitMsg)
-				//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] mode:", currActor.CurrNode.Mode)
+				modeMutex.Lock()
+				if actor.CurrNode.Mode != NormalMode{
 
-				if currActor.CurrNode.Mode != NormalMode{
-					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] Block by normal mode verifier")
 					//switchViewChangeModeMutex.Lock()
 					//currActor.switchToviewChangeMode()
 					//switchViewChangeModeMutex.Unlock()
-					continue
+
+					return
 				}
-
-				if commitMsg.prevMsgHash == nil {
-					//TODO: Switch to view change mode
-					// Send faulty primary node msg to other nodes
-					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] commit.prevMsgHash == nil")
-					switchViewChangeModeMutex.Lock()
-					currActor.switchToviewChangeMode()
-					switchViewChangeModeMutex.Unlock()
-					continue
-				}
-
-				if currActor.BFTMsgLogs[*commitMsg.prevMsgHash] == nil{
-					//TODO: Switch to view change mode
-					// Send faulty primary node msg to other nodes
-					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] currActor.BFTMsgLogs[*commitMsg.prevMsgHash] == nil")
-					switchViewChangeModeMutex.Lock()
-					currActor.switchToviewChangeMode()
-					switchViewChangeModeMutex.Unlock()
-					continue
-				}
-
-				//Save it to somewhere else for every node (actor of consensus engine)
-
-				time.Sleep(time.Millisecond * 100)
-
-				commitMutex.Lock()
-
-				if currActor.BFTMsgLogs[commitMsg.hash] == nil{
-					saveMsgMutex.Lock()
-					currActor.BFTMsgLogs[commitMsg.hash] = new(NormalMsg) //Race condition
-					*currActor.BFTMsgLogs[commitMsg.hash] = commitMsg
-					saveMsgMutex.Unlock()
-				} else {
-					saveMsgMutex.Lock()
-					currActor.BFTMsgLogs[commitMsg.hash].Amount++
-					saveMsgMutex.Unlock()
-				}
-
-				commitMutex.Unlock()
-
-				//TODO: Checking for > 2n/3
-
-				// Node (not primary node) send prepare msg to other nodes
-
-				//TODO: Optimize by once a node has greater 2n/3 switch to commit phase
+				modeMutex.Unlock()
 
 				msgTimerMutex.Lock()
-				currActor.amountMsgTimer = time.NewTimer(time.Millisecond * 200) //Race condition
+				if actor.commitAmountMsgTimer == nil{
+					actor.commitAmountMsgTimer = time.NewTimer(time.Millisecond * 100)
+
+					msgTimer := MsgTimer{ Type:COMMIT }
+					go func (){
+						actor.msgTimerCh <- msgTimer
+					}()
+				}
 				msgTimerMutex.Unlock()
 
-				//currActor.wg.Add(1)
-
+				actor.wg.Add(1)
 				go func(){
-					defer func() {
-						msgTimerMutex.Lock()
-						currActor.amountMsgTimer.Stop()
-						msgTimerMutex.Unlock()
-						//currActor.wg.Done()
-					}()
 
 					select {
-					case <-currActor.amountMsgTimer.C:
+					case <- actor.commitMsgTimerCh:
 
-						commitMutex.Lock()
+						//CommitMapMutex.Lock()
+						PrepareMapMutex.Lock()
 
-						for _, msg := range currActor.BFTMsgLogs{
-							if msg.prevMsgHash != nil && *msg.prevMsgHash == *commitMsg.prevMsgHash && msg.Type == COMMIT{
-								currActor.BFTMsgLogs[*commitMsg.prevMsgHash].Amount++
-							}
-						}
+						if commitMsg.prevMsgHash == nil {
 
-						commitMutex.Unlock()
+							//log.Println("[prepare] prepareMsg.prevMsgHash")
 
-						commitMutex.Lock()
+							//switchViewChangeModeMutex.Lock()
+							//currActor.switchToviewChangeMode()
+							//switchViewChangeModeMutex.Unlock()
 
-						//log.Println("currActor.BFTMsgLogs[*commitMsg.prevMsgHash].Amount:", currActor.BFTMsgLogs[*commitMsg.prevMsgHash].Amount)
-
-						if uint64(currActor.BFTMsgLogs[*commitMsg.prevMsgHash].Amount) <= uint64(2*n/3){
-							//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] uint64(currActor.BFTMsgLogs[*commitMsg.prevMsgHash].Amount) <= 2n/3")
-							switchViewChangeModeMutex.Lock()
-							currActor.switchToviewChangeMode()
-							switchViewChangeModeMutex.Unlock()
 							return
 						}
 
-						//Move to finishing phase
+						if actor.BFTMsgLogs[*commitMsg.prevMsgHash] == nil {
 
-						//TODO: Stop commit timeout here
+							//log.Println("[prepare] currActor.BFTMsgLogs[*prepareMsg.prevMsgHash]")
 
-						//currActor.commitTimer.Stop()
+							//switchViewChangeModeMutex.Lock()
+							//currActor.switchToviewChangeMode()
+							//switchViewChangeModeMutex.Unlock()
 
-						if !currActor.BFTMsgLogs[*commitMsg.prevMsgHash].commitExpire {
-
-							currActor.BFTMsgLogs[*commitMsg.prevMsgHash].commitExpire = true
-
-							//Update current chain
-							check, err := currActor.chainHandler.ValidateBlock(commitMsg.block)
-							if err != nil || !check {
-								log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] Error in validating block")
-								//currActor.wg.Add(1)
-								currActor.switchToviewChangeMode()
-								return
-								//currActor.wg.Wait()
-							}
-							check, err = currActor.chainHandler.InsertBlock(commitMsg.block)
-							if err != nil || !check {
-								//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] Error in inserting block")
-								//currActor.wg.Add(1)
-								switchViewChangeModeMutex.Lock()
-								currActor.switchToviewChangeMode()
-								switchViewChangeModeMutex.Unlock()
-								return
-								//currActor.wg.Wait()
-							}
-							//Increase sequence number
-							err = currActor.chainHandler.IncreaseSeqNum()
-							if err != nil {
-								//log.Println("View", currActor.CurrNode.View, "[commit] Error in increasing sequence number")
-								//currActor.wg.Add(1)
-								switchViewChangeModeMutex.Lock()
-								currActor.switchToviewChangeMode()
-								switchViewChangeModeMutex.Unlock()
-								return
-								//currActor.wg.Wait()
-							}
-
-							if currActor.CurrNode.IsProposer { //Race condition
-								//logBlockMutex.Lock()
-								//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[commit] proposer:", currActor.CurrNode.index)
-								currActor.chainHandler.print()
-								//logBlockMutex.Unlock()
-							}
-
-							//After normal mode
-							updateModeMutex.Lock()
-							err = currActor.CurrNode.updateAfterNormalMode()
-							if err != nil{
-								//log.Println(err)
-								switchViewChangeModeMutex.Lock()
-								currActor.switchToviewChangeMode()
-								switchViewChangeModeMutex.Unlock()
-								return
-							}
-							updateModeMutex.Unlock()
-
-							time.Sleep(time.Millisecond * 100)
-
-							switchViewChangeModeMutex.Lock()
-							currActor.switchToviewChangeMode()
-							switchViewChangeModeMutex.Unlock()
-
+							return
 						}
 
-						commitMutex.Unlock()
+						//log.Println(actor.BFTMsgLogs[commitMsg.hash])
+
+						//Save it to somewhere else for every node (actor of consensus engine)
+
+						if actor.BFTMsgLogs[commitMsg.hash] == nil {
+							actor.BFTMsgLogs[commitMsg.hash] = new(NormalMsg)
+							*actor.BFTMsgLogs[commitMsg.hash] = commitMsg
+						}
+						actor.BFTMsgLogs[commitMsg.hash].Amount++
+
+						actor.wg.Done()
+
+						PrepareMapMutex.Unlock()
+						//CommitMapMutex.Unlock()
 					}
 				}()
 
+				actor.commitMsgTimerCh <- true
+				actor.wg.Wait()
+
+
 			case viewChangeMsg := <- actor.ViewChangeMsgCh:
 
-				currActor := actor.CurrNode.consensusEngine.BFTProcess
+				//modeMutex.Lock()
 
-				if currActor.CurrNode.Mode != ViewChangeMode{
-					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[viewchange] Block by viewchange mode verifier")
-					//currActor.switchToNormalMode() //Race condition
-					continue
-				}
+				//log.Println("[outside] actor.CurrNode:", actor.CurrNode)
+
+				//if actor.CurrNode.Mode != ViewChangeMode{
+				//	//currActor.switchToNormalMode() //Race condition
+				//	log.Println(1)
+				//	continue
+				//}
+
+				//modeMutex.Unlock()
 
 				switch viewChangeMsg.Type {
+
 				case VIEWCHANGE:
 
-					//Timeout generate new block
-					//currActor.wg.Add(1)
-					go func(){
-						//defer func() {
-						//	currActor.wg.Done()
-						//}()
+					msgTimerMutex.Lock()
+					if actor.viewChangeAmountMsgTimer == nil {
+						actor.viewChangeAmountMsgTimer = time.NewTimer(time.Millisecond * 100)
 
+						msgTimer := MsgTimer{VIEWCHANGE}
+						go func() {
+							actor.msgTimerCh <- msgTimer
+						}()
+
+					}
+					msgTimerMutex.Unlock()
+
+					actor.wg.Add(1)
+					go func() {
 						select {
-						case <-currActor.timeOutCh:
-							if currActor.CurrNode.Mode == ViewChangeMode{
+						case <- actor.viewChangeMsgTimerCh:
 
-								//log.Println("View", currActor.CurrNode.View ,"View change msg from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index)
+							modeMutex.Lock()
 
-								if viewChangeMsg.View < currActor.CurrNode.View {
-									//TODO: Restart new view change mode
-									// Send faulty node ask to become primary node msg to other nodes
-									//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] (already in viewchange mode) viewChangeMsg.View <= currActor.CurrNode.View")
-									switchViewChangeModeMutex.Lock()
-									currActor.switchToviewChangeMode()
-									switchViewChangeModeMutex.Unlock()
+							if actor.CurrNode.Mode == ViewChangeMode{
+
+								if viewChangeMsg.View < actor.CurrNode.View {
+									//switchViewChangeModeMutex.Lock()
+									//currActor.switchToviewChangeMode()
+									//switchViewChangeModeMutex.Unlock()
 									return
 								}
+
 							} else {
-								if viewChangeMsg.View <= currActor.CurrNode.View{
-									//TODO: Restart new view change mode
-									// Send faulty node ask to become primary node msg to other nodes
-									//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] viewChangeMsg.View <= currActor.CurrNode.View")
-									switchViewChangeModeMutex.Lock()
-									currActor.switchToviewChangeMode()
-									switchViewChangeModeMutex.Unlock()
+								if viewChangeMsg.View <= actor.CurrNode.View{
+									//switchViewChangeModeMutex.Lock()
+									//currActor.switchToviewChangeMode()
+									//switchViewChangeModeMutex.Unlock()
 									return
-									//currActor.wg.Wait()
 								}
 							}
 
-							viewChangeMutex.Lock()
-
+							//Try to figure other way
 							//Save view change msg to somewhere
-							if currActor.ViewChangeMsgLogs[viewChangeMsg.hash] == nil {
+							if actor.ViewChangeMsgLogs[viewChangeMsg.hash] == nil {
 								isDup := false
-								for _, element := range currActor.ViewChangeMsgLogs{
-									if element.Type == VIEWCHANGE && element.SignerID == viewChangeMsg.SignerID && element.View == viewChangeMsg.View{
+								for _, element := range actor.ViewChangeMsgLogs {
+									if element.Type == VIEWCHANGE && element.SignerID == viewChangeMsg.SignerID && element.View == viewChangeMsg.View {
 										isDup = true
 										break
 									}
 								}
 
 								if !isDup{
+									actor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
+									*actor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
+								}
+								actor.viewChangeAmount[int(actor.View())]++
+							}
 
-									//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] currActor.ViewChangeMsgLogs", currActor.ViewChangeMsgLogs)
-									//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[view change] viewChangeMsg.hash", viewChangeMsg.hash)
-
-									currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
-									*currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
+							for _, msg := range actor.ViewChangeMsgLogs{
+								if msg.View == actor.View() && msg.Type == VIEWCHANGE{
+									actor.viewChangeAmount[int(actor.View())]++
 								}
 							}
 
-							for _, msg := range currActor.ViewChangeMsgLogs{
-								if msg.View == currActor.View() && msg.Type == VIEWCHANGE{
-									saveMsgMutex.Lock()
-									currActor.viewChangeAmount[int(currActor.View())]++
-									saveMsgMutex.Unlock()
-								}
-							}
-
-							viewChangeMutex.Unlock()
-
-							timerMutex.Lock()
-							currActor.amountMsgTimer = time.NewTimer(time.Millisecond * 100) //Race condition
-							timerMutex.Unlock()
-
-							go func(){
-								select {
-								case <-currActor.amountMsgTimer.C: //Race condition
-									viewChangeMutex.Lock()
-
-									if uint64(currActor.viewChangeAmount[int(currActor.View())]) > uint64(2*n/3){
-
-										if !currActor.viewChangeExpire {
-
-											currActor.viewChangeExpire = true
-
-											if currActor.isPrimaryNode(int(currActor.View())){
-												msg := ViewMsg{
-													hash: utils.GenerateHashV1(),
-													Type:       NEWVIEW,
-													View:       viewChangeMsg.View,
-													SignerID:   currActor.CurrNode.index,
-													Timestamp:  uint64(time.Now().Unix()),
-													prevMsgHash: viewChangeMsg.prevMsgHash, //viewchange msg hash
-												}
-
-												for _, msg := range currActor.ViewChangeMsgLogs{
-													if msg.View == currActor.View() && msg.Type == VIEWCHANGE{
-														msg.hashSignedMsgs = append(msg.hashSignedMsgs, msg.hash)
-													}
-												}
-
-												//Save view change msg to somewhere
-												if currActor.ViewChangeMsgLogs[msg.hash] == nil {
-													currActor.ViewChangeMsgLogs[msg.hash] = new(ViewMsg)
-													*currActor.ViewChangeMsgLogs[msg.hash] = msg
-												}
-
-												//Send messages to other nodes
-												for _, element := range currActor.Validators{
-													//Define message for sending back to primary node
-
-													go func(node *Node){
-														node.consensusEngine.BFTProcess.ViewChangeMsgCh <- msg
-													}(element)
-												}
-											}
-
-											//TODO:
-											// Start new view of view change mode here
-
-										}
-
-									} else {
-										//currActor.wg.Add(1)
-										switchViewChangeModeMutex.Lock()
-										currActor.switchToviewChangeMode()
-										switchViewChangeModeMutex.Unlock()
-										return
-										//currActor.wg.Wait()
-									}
-
-									viewChangeMutex.Unlock()
-								}
-							}()
-
-						case <-currActor.viewChangeTimer.C:
-							time.Sleep(time.Millisecond * 100)
-
-							//currActor.wg.Add(1)
-							switchViewChangeModeMutex.Lock()
-							currActor.switchToviewChangeMode()
-							switchViewChangeModeMutex.Unlock()
-							return
-							//currActor.wg.Wait()
+							actor.wg.Done()
+							modeMutex.Unlock()
 						}
 					}()
 
-					timeOutChMutex.Lock()
-					currActor.timeOutCh <- true
-					timeOutChMutex.Unlock()
+					actor.viewChangeMsgTimerCh <- true
+					actor.wg.Wait()
 
 				case NEWVIEW:
 
-					//log.Println("View", currActor.CurrNode.View , "New view msg from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index)
-
-					go func(){
+					actor.wg.Add(1)
+					go func() {
 						select {
-						case <-currActor.timeOutCh:
-							currActor.viewChangeExpire = false
+						case <- actor.newViewMsgTimerCh:
 
-							if viewChangeMsg.View != currActor.CurrNode.View{
-								//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[New view] viewChangeMsg.View <= currActor.CurrNode.View")
-								switchViewChangeModeMutex.Lock()
-								currActor.switchToviewChangeMode()
-								switchViewChangeModeMutex.Unlock()
+							//log.Println(1)
+
+							if viewChangeMsg.View != actor.CurrNode.View{
+								//ModeMapMutex.Lock()
+								//actor.switchToviewChangeMode()
+								//ModeMapMutex.Unlock()
 								return
 							}
 
-							if viewChangeMsg.SignerID != currActor.CurrNode.index {
-								for _, hash := range viewChangeMsg.hashSignedMsgs {
-									if currActor.ViewChangeMsgLogs[hash] == nil {
-										//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[New view] Wrong signed viewchange messages")
-
-										switchViewChangeModeMutex.Lock()
-										currActor.switchToviewChangeMode()
-										switchViewChangeModeMutex.Unlock()
-
+							if viewChangeMsg.SignerID != actor.CurrNode.index {
+								for _, hash := range viewChangeMsg.hashSignedMsgs{
+									if actor.ViewChangeMsgLogs[hash] == nil {
+										//ModeMapMutex.Lock()
+										//actor.switchToviewChangeMode()
+										//ModeMapMutex.Unlock()
 										break
 									}
 								}
 							}
-
 							//Save view change msg to somewhere
-							if currActor.ViewChangeMsgLogs[viewChangeMsg.hash] == nil {
-								currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
-								*currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
+							if actor.ViewChangeMsgLogs[viewChangeMsg.hash] == nil {
+								actor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
+								*actor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
 							}
 
-							currActor.viewChangeTimer.Stop()
+							timerMutex.Lock()
+							if actor.viewChangeTimer != nil{
+								actor.viewChangeTimer.Stop()
+							}
+							timerMutex.Unlock()
 
-							//currActor.wg.Add(1)
-
-							//log.Println("Jump to switch to normal mode")
-
-							switchNormalModeMutex.Lock()
-							currActor.switchToNormalMode()
-
-							if currActor.isPrimaryNode(int(currActor.View())){
-								currActor.BroadcastMsgCh <- true
-							} else {
-								time.Sleep(time.Millisecond * 50)
+							actor.switchToNormalMode()
+							if actor.isPrimaryNode(int(actor.View())){
+								actor.BroadcastMsgCh <- true
 							}
 
-							switchNormalModeMutex.Unlock()
-
-						case <-currActor.viewChangeTimer.C:
-							//currActor.wg.Add(1)
-							switchViewChangeModeMutex.Lock()
-							currActor.switchToviewChangeMode()
-							switchViewChangeModeMutex.Unlock()
-							return
-							//currActor.wg.Wait()
+							actor.wg.Done()
 						}
 					}()
-
-					currActor.timeOutCh <- true
 				}
+
+				//log.Println(0)
+
+				go func() {
+					//actor.stuckCh <- "Test"
+					actor.newViewMsgTimerCh <- true
+				}()
+				actor.wg.Wait()
+
+			case msgTimer := <- actor.msgTimerCh:
+				actor.handleMsgTimer(msgTimer)
+
+			case <- actor.viewChangeTimerCh:
+				go func() {
+					select {
+					case <- actor.viewChangeTimer.C:
+						actor.switchToviewChangeMode()
+						return
+					}
+				}()
 			}
+
 		}
 	}()
 	return nil

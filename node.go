@@ -20,17 +20,16 @@ type Node struct{
 	consensusEngine *Engine
 	CurrSeqNumber uint64
 	CurrHeadOfChain uint64
-	PhaseStatus int
 	IsProposer bool
 	Mode string
 	View uint64
+	PrimaryNode *Node
 }
 
 //updateAfterNormalMode ...
 func (node *Node) updateAfterNormalMode() error{
 	node.CurrHeadOfChain = node.consensusEngine.BFTProcess.chainHandler.Height()
 	node.CurrSeqNumber = node.consensusEngine.BFTProcess.chainHandler.SeqNumber()
-	node.Mode = NormalMode
 	return nil
 }
 
@@ -53,7 +52,6 @@ func (node *Node) createNode(index int) (*Node, error){
 		consensusEngine: NewEngine(),
 		CurrSeqNumber: 0,
 		CurrHeadOfChain: 0,
-		PhaseStatus: 0,
 		View: 0,
 		Mode: NormalMode,
 		IsProposer: false,
@@ -136,19 +134,27 @@ var simulateMutex sync.Mutex
 func simulate(){
 	log.Println("Start simulating")
 
+	//engine := NewEngine()
+
 	nodes[0].IsProposer = true
 
-	for _, element := range nodes{
+	var wg sync.WaitGroup
 
-		element.Mode = NormalMode
+	for _, node := range nodes{
 
-		simulateMutex.Lock()
-		if element.consensusEngine.BFTProcess.ProposalNode == nil {
-			element.consensusEngine.BFTProcess.ProposalNode = nodes[0] // Race condition
-		} else {
-			*element.consensusEngine.BFTProcess.ProposalNode = *nodes[0] // Race condition
-		}
-		simulateMutex.Unlock()
+		wg.Add(1)
+
+		go func(node *Node){
+			defer wg.Done()
+
+			node.Mode = NormalMode
+
+			node.PrimaryNode = nodes[0]
+
+		}(node)
+
+		wg.Wait()
+
 	}
 
 	go func(){

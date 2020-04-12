@@ -12,10 +12,17 @@ func main(){
 	f = uint64((n - 1) / 3)
 
 	initNodes(int(n))
+
 	start()
+
+	//debug()
+
 	simulate()
 
-	//startGlobalTimer()
+	//go func(){
+	//	time.Sleep(time.Millisecond * 10000)
+	//	debug()
+	//}()
 
 	select {
 

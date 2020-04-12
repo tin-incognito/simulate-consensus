@@ -370,7 +370,7 @@ func (actor Actor) start() error{
 
 				msgTimerMutex.Lock()
 				if actor.commitAmountMsgTimer == nil{
-					actor.commitAmountMsgTimer = time.NewTimer(time.Millisecond * 200)
+					actor.commitAmountMsgTimer = time.NewTimer(time.Millisecond * 100)
 
 					msgTimer := MsgTimer{ Type:COMMIT }
 					go func (){
@@ -433,26 +433,33 @@ func (actor Actor) start() error{
 
 			case viewChangeMsg := <- actor.ViewChangeMsgCh:
 
-				modeMutex.Lock()
+				//modeMutex.Lock()
+
+				//log.Println("[outside] actor.CurrNode:", actor.CurrNode)
 
 				//if actor.CurrNode.Mode != ViewChangeMode{
 				//	//currActor.switchToNormalMode() //Race condition
+				//	log.Println(1)
 				//	continue
 				//}
 
-				modeMutex.Unlock()
+				//modeMutex.Unlock()
 
 				switch viewChangeMsg.Type {
 
 				case VIEWCHANGE:
 
-					timerMutex.Lock()
-					actor.viewChangeTimer = time.NewTimer(time.Millisecond * 100) //Race condition
-					msgTimer := MsgTimer{ Type:VIEWCHANGE }
-					go func (){
-						actor.msgTimerCh <- msgTimer
-					}()
-					timerMutex.Unlock()
+					msgTimerMutex.Lock()
+					if actor.viewChangeAmountMsgTimer == nil {
+						actor.viewChangeAmountMsgTimer = time.NewTimer(time.Millisecond * 100)
+
+						msgTimer := MsgTimer{VIEWCHANGE}
+						go func() {
+							actor.msgTimerCh <- msgTimer
+						}()
+
+					}
+					msgTimerMutex.Unlock()
 
 					actor.wg.Add(1)
 					go func() {
@@ -494,6 +501,7 @@ func (actor Actor) start() error{
 									actor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
 									*actor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
 								}
+								actor.viewChangeAmount[int(actor.View())]++
 							}
 
 							for _, msg := range actor.ViewChangeMsgLogs{
@@ -512,80 +520,71 @@ func (actor Actor) start() error{
 
 				case NEWVIEW:
 
+					actor.wg.Add(1)
+					go func() {
+						select {
+						case <- actor.newViewMsgTimerCh:
 
+							//log.Println(1)
+
+							if viewChangeMsg.View != actor.CurrNode.View{
+								//ModeMapMutex.Lock()
+								//actor.switchToviewChangeMode()
+								//ModeMapMutex.Unlock()
+								return
+							}
+
+							if viewChangeMsg.SignerID != actor.CurrNode.index {
+								for _, hash := range viewChangeMsg.hashSignedMsgs{
+									if actor.ViewChangeMsgLogs[hash] == nil {
+										//ModeMapMutex.Lock()
+										//actor.switchToviewChangeMode()
+										//ModeMapMutex.Unlock()
+										break
+									}
+								}
+							}
+							//Save view change msg to somewhere
+							if actor.ViewChangeMsgLogs[viewChangeMsg.hash] == nil {
+								actor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
+								*actor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
+							}
+
+							timerMutex.Lock()
+							if actor.viewChangeTimer != nil{
+								actor.viewChangeTimer.Stop()
+							}
+							timerMutex.Unlock()
+
+							actor.switchToNormalMode()
+							if actor.isPrimaryNode(int(actor.View())){
+								actor.BroadcastMsgCh <- true
+							}
+
+							actor.wg.Done()
+						}
+					}()
 				}
-			////	case NEWVIEW:
-			////
-			////		//log.Println("Newview")
-			////
-			////		//log.Println("View", currActor.CurrNode.View , "New view msg from:", viewChangeMsg.SignerID, "to:", currActor.CurrNode.index)
-			////
-			////		go func(){
-			////			select {
-			////			case <-currActor.timeOutCh:
-			////				currActor.viewChangeExpire = false
-			////
-			////				if viewChangeMsg.View != currActor.CurrNode.View{
-			////					//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[New view] viewChangeMsg.View <= currActor.CurrNode.View")
-			////					switchViewChangeModeMutex.Lock()
-			////					currActor.switchToviewChangeMode()
-			////					switchViewChangeModeMutex.Unlock()
-			////					return
-			////				}
-			////
-			////				if viewChangeMsg.SignerID != currActor.CurrNode.index {
-			////					for _, hash := range viewChangeMsg.hashSignedMsgs {
-			////						if currActor.ViewChangeMsgLogs[hash] == nil {
-			////							//log.Println("View", currActor.CurrNode.View, "Node", currActor.CurrNode.index, "[New view] Wrong signed viewchange messages")
-			////
-			////							switchViewChangeModeMutex.Lock()
-			////							currActor.switchToviewChangeMode()
-			////							switchViewChangeModeMutex.Unlock()
-			////
-			////							break
-			////						}
-			////					}
-			////				}
-			////
-			////				//Save view change msg to somewhere
-			////				if currActor.ViewChangeMsgLogs[viewChangeMsg.hash] == nil {
-			////					currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = new(ViewMsg)
-			////					*currActor.ViewChangeMsgLogs[viewChangeMsg.hash] = viewChangeMsg
-			////				}
-			////
-			////				currActor.viewChangeTimer.Stop()
-			////
-			////				//currActor.wg.Add(1)
-			////
-			////				//log.Println("Jump to switch to normal mode")
-			////
-			////				switchNormalModeMutex.Lock()
-			////				currActor.switchToNormalMode()
-			////
-			////				if currActor.isPrimaryNode(int(currActor.View())){
-			////					currActor.BroadcastMsgCh <- true
-			////				} else {
-			////					time.Sleep(time.Millisecond * 50)
-			////				}
-			////
-			////				switchNormalModeMutex.Unlock()
-			////
-			////			case <-currActor.viewChangeTimer.C:
-			////				//currActor.wg.Add(1)
-			////				switchViewChangeModeMutex.Lock()
-			////				currActor.switchToviewChangeMode()
-			////				switchViewChangeModeMutex.Unlock()
-			////				return
-			////				//currActor.wg.Wait()
-			////			}
-			////		}()
-			////
-			////		currActor.timeOutCh <- true
-			//	}
+
+				//log.Println(0)
+
+				go func() {
+					//actor.stuckCh <- "Test"
+					actor.newViewMsgTimerCh <- true
+				}()
+				actor.wg.Wait()
 
 			case msgTimer := <- actor.msgTimerCh:
 				actor.handleMsgTimer(msgTimer)
 
+			case <- actor.viewChangeTimerCh:
+				go func() {
+					select {
+					case <- actor.viewChangeTimer.C:
+						actor.switchToviewChangeMode()
+						return
+					}
+				}()
 			}
 
 		}

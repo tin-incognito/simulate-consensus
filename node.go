@@ -30,7 +30,6 @@ type Node struct{
 func (node *Node) updateAfterNormalMode() error{
 	node.CurrHeadOfChain = node.consensusEngine.BFTProcess.chainHandler.Height()
 	node.CurrSeqNumber = node.consensusEngine.BFTProcess.chainHandler.SeqNumber()
-	node.Mode = NormalMode
 	return nil
 }
 

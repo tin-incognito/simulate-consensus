@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/tin-incognito/simulate-consensus/common"
 	"github.com/tin-incognito/simulate-consensus/utils"
+	"log"
 	"sync"
 	"time"
 )
@@ -28,30 +29,31 @@ type Actor struct{
 	postMsgTimerCh chan MsgTimer
 	prepareAmountMsgTimer *time.Timer
 	commitAmountMsgTimer *time.Timer
+	viewChangeAmountMsgTimer *time.Timer
 	idleTimer *time.Timer
 	blockPublishTimer *time.Timer
 	commitTimer *time.Timer
 	viewChangeTimer *time.Timer
 	newBlock *Block
 	prePrepareMsg map[int]*NormalMsg
-	viewChangeMsg map[int]*ViewMsg
-	viewChangeExpire bool
 	viewChangeAmount map[int]int
+	viewChangeExpire map[int]bool
 	phaseStatus string
 	msgTimerCh chan MsgTimer
 	stuckCh chan string
+	newViewMsgTimerCh chan bool
 	prepareMsgTimerCh chan bool
 	prepareTimeOutCh chan bool
 	commitMsgTimerCh chan bool
 	commitTimeOutCh chan bool
 	viewChangeMsgTimerCh chan bool
+	viewChangeTimerCh chan bool
 	modeMutex sync.Mutex
 }
 
 func NewActor() *Actor{
 
 	res := &Actor{
-		viewChangeMsg: make (map[int]*ViewMsg),
 		postMsgTimerCh: make (chan MsgTimer),
 		PrePrepareMsgCh:     make (chan NormalMsg, 100),
 		PrepareMsgCh:        make (chan NormalMsg, 100),
@@ -76,6 +78,9 @@ func NewActor() *Actor{
 		prepareMsgTimerCh: make (chan bool),
 		commitMsgTimerCh: make (chan bool),
 		viewChangeMsgTimerCh: make (chan bool),
+		viewChangeExpire: make(map[int]bool),
+		newViewMsgTimerCh: make (chan bool),
+		viewChangeTimerCh: make (chan bool),
 	}
 
 	return res
@@ -386,7 +391,10 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 
 					if actor.CurrNode.IsProposer { //Race condition
 
+						//printLock.Lock()
+						log.Println("Proposer:", actor.CurrNode.index)
 						actor.chainHandler.print()
+						//printLock.Unlock()
 
 						if getEnv("ENV", "prod") == "test"{
 							//TEST SIMULATE NORMAL MODE
@@ -413,34 +421,29 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 
 		go func() {
 			select {
-			case <-actor.viewChangeTimer.C:
-
-				//How to get viewchange msg with view now?
-
-				actor.viewChangeTimer = nil
-
-				viewChange := actor.prePrepareMsg[int(actor.CurrNode.View)]
+			case <- actor.viewChangeAmountMsgTimer.C:
+				
+				modeMutex.Lock()
 
 				if uint64(actor.viewChangeAmount[int(actor.View())]) <= uint64(2*n/3) {
 
 					return
 				}
-
-				if !actor.viewChangeExpire {
-					actor.viewChangeExpire = true
+				if !actor.viewChangeExpire[int(actor.View())] {
+					actor.viewChangeExpire[int(actor.View())] = true
 
 					if actor.isPrimaryNode(int(actor.View())) {
 						msg := ViewMsg{
 							hash:        utils.GenerateHashV1(),
 							Type:        NEWVIEW,
-							View:        viewChangeMsg.View,
+							View:        actor.CurrNode.View,
 							SignerID:    actor.CurrNode.index,
 							Timestamp:   uint64(time.Now().Unix()),
-							prevMsgHash: viewChangeMsg.prevMsgHash, //viewchange msg hash
+							prevMsgHash: nil, //viewchange msg hash
 						}
 
 						for _, msg := range actor.ViewChangeMsgLogs {
-							if msg.View == actor.View() && msg.Type == VIEWCHANGE {
+							if msg.View == actor.View() && msg.Type == NEWVIEW {
 								msg.hashSignedMsgs = append(msg.hashSignedMsgs, msg.hash)
 							}
 						}
@@ -459,9 +462,14 @@ func (actor *Actor) handleMsgTimer(msgTimer MsgTimer){
 							}(element)
 						}
 					}
+
+					timerMutex.Lock()
+					actor.viewChangeAmountMsgTimer = nil
+					timerMutex.Unlock()
 				}
+
+				modeMutex.Unlock()
 			}
 		}()
-
 	}
 }
